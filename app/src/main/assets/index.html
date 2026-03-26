@@ -29,7 +29,6 @@
     <div class="header-title-row">
       <h1 class="game-title">COSMIC <span class="accent">PLASMA</span></h1>
       <div class="header-actions">
-        <button id="leaderboard-btn" class="header-icon-btn" onclick="openLeaderboard()" aria-label="Leaderboard">🏆</button>
         <button id="settings-btn" class="header-icon-btn settings" onclick="openSettings()" aria-label="Settings">⚙️</button>
       </div>
     </div>
@@ -64,7 +63,14 @@
         <span class="click-icon">⚛</span>
       </div>
     </button>
-    <div class="click-power-label">Click Power: <span id="click-power-display">1</span></div>
+    <div class="plasma-actions-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; margin: 15px auto 0 auto; padding: 0 10px;">
+      <div style="width: 80px;"></div> <!-- Spacer -->
+      <div class="click-power-label" id="tap-power-label" style="margin-top: 0;">Tap Power: <span id="click-power-display">1</span></div>
+      <div class="quick-actions" style="display: flex; width: 80px; justify-content: flex-end; gap: 8px;">
+        <button class="quick-action-btn" onclick="openLeaderboard()" aria-label="Leaderboard">🏆</button>
+        <button class="quick-action-btn" onclick="openInfoModal()" aria-label="Info">ℹ️</button>
+      </div>
+    </div>
   </section>
 
   <!-- Tab navigation -->
@@ -95,7 +101,7 @@
         <p>Reset your generators and plasma to earn <strong>Cosmic Shards</strong>. Each shard permanently boosts ALL production by <strong>5%</strong>.</p>
 
         <div style="font-size:0.82rem; color:var(--text-muted); margin: 6px 0 12px 0; padding: 6px 10px; border-left: 2px solid var(--accent); opacity: 0.85;">
-          💎 Holding bonus (unspent shards): <strong id="shard-holding-bonus">+0%</strong> to all output &amp; clicks
+          💎 Holding bonus (unspent shards): <strong id="shard-holding-bonus">+0%</strong> to all output &amp; taps
         </div>
 
         <div class="prestige-preview">
@@ -145,15 +151,20 @@
     <!-- Stats Tab -->
     <div class="tab-panel" id="tab-stats">
       <div class="stats-grid glass-panel">
+        <h3 class="stats-section-title">📊 All Time</h3>
         <div class="stat-row"><span>Total Plasma Earned</span><span id="stat-total-plasma">0</span></div>
-        <div class="stat-row"><span>Total Clicks</span><span id="stat-total-clicks">0</span></div>
-        <div class="stat-row"><span>Plasma from Clicks</span><span id="stat-click-plasma">0</span></div>
-        <div class="stat-row"><span>Plasma from Auto-Clicker</span><span id="stat-auto-plasma">0</span></div>
+        <div class="stat-row"><span>Total Taps</span><span id="stat-total-taps">0</span></div>
+        <div class="stat-row"><span>Plasma from Taps</span><span id="stat-tap-plasma">0</span></div>
+        <div class="stat-row"><span>Plasma from Auto-Tapper</span><span id="stat-auto-plasma">0</span></div>
         <div class="stat-row"><span>Plasma from Generators</span><span id="stat-gen-plasma">0</span></div>
         <div class="stat-row"><span>Times Prestiged</span><span id="stat-prestiges">0</span></div>
         <div class="stat-row"><span>Total Shards Earned</span><span id="stat-total-shards">0</span></div>
         <div class="stat-row"><span>Current Multiplier</span><span id="stat-multiplier">x1.00</span></div>
         <div class="stat-row"><span>Play Time</span><span id="stat-playtime">0s</span></div>
+        
+        <h3 class="stats-section-title" style="margin-top: 16px;">🚀 This Session (Since Prestige)</h3>
+        <div class="stat-row"><span>Session Plasma</span><span id="stat-session-plasma">0</span></div>
+        <div class="stat-row"><span>Session Taps</span><span id="stat-session-taps">0</span></div>
       </div>
       <div class="save-controls">
         <button class="save-btn" onclick="saveGame()">💾 Save Game</button>
@@ -166,7 +177,7 @@
   <!-- Toast notifications -->
   <div id="toast-container"></div>
 
-  <!-- Custom Confirm Modal (replaces native confirm()) -->
+  <!-- Custom Confirm Modal -->
   <div id="confirm-modal" class="confirm-overlay">
     <div class="confirm-box">
         <div class="confirm-icon">⚠️</div>
@@ -174,6 +185,52 @@
         <div class="confirm-actions">
             <button class="confirm-cancel-btn" id="confirm-cancel-btn">CANCEL</button>
             <button class="confirm-ok-btn" id="confirm-ok-btn">CONFIRM</button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div id="info-modal" class="confirm-overlay">
+    <div class="info-box">
+        <button class="info-close-btn" onclick="closeInfoModal()">✕</button>
+        <h2 class="info-title">📖 HOW TO PLAY</h2>
+        <div class="info-scroll">
+            <div class="info-section">
+                <h3>⚛ Plasma Energy</h3>
+                <p>Tap the plasma orb to generate energy. Buy generators to produce plasma automatically. Your plasma per second increases as you acquire more generators.</p>
+            </div>
+            <div class="info-section">
+                <h3>⚡ Generators</h3>
+                <p>10 unique generators unlocking as you play. Long-press to buy max. Higher-tier generators produce exponentially more!</p>
+                <ul style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 8px; padding-left: 16px; line-height: 1.6;">
+                    <li><strong style="color: var(--text-primary)">✦ Spark</strong>: The beginning of energy.</li>
+                    <li><strong style="color: var(--text-primary)">🔥 Ember</strong>: Concentrated plasma heat.</li>
+                    <li><strong style="color: var(--text-primary)">☀️ Solar Flare</strong>: Star-level energy emission.</li>
+                    <li><strong style="color: var(--text-primary)">⚡ Plasma Arc</strong>: Controlled energy lightning.</li>
+                    <li><strong style="color: var(--text-primary)">🌀 Fusion Core</strong>: Sustainable nuclear fusion.</li>
+                    <li><strong style="color: var(--text-primary)">💥 Nova Burst</strong>: Exploding star remnants.</li>
+                    <li><strong style="color: var(--text-primary)">🌟 Pulsar</strong>: Rapid rotating beacon.</li>
+                    <li><strong style="color: var(--text-primary)">🌌 Quasar</strong>: Supermassive black hole jet.</li>
+                    <li><strong style="color: var(--text-primary)">🔮 Nebula Forge</strong>: Birthplace of stars.</li>
+                    <li><strong style="color: var(--text-primary)">🕳️ Singularity</strong>: Infinite gravity point.</li>
+                </ul>
+            </div>
+            <div class="info-section">
+                <h3>🔧 Upgrades</h3>
+                <p>One-time purchases that boost your tap power or generator output. New upgrades unlock as you progress through the game.</p>
+            </div>
+            <div class="info-section">
+                <h3>🌌 Prestige</h3>
+                <p>Once you reach 1M+ total plasma, you can prestige to reset your generators and earn <strong>Cosmic Shards</strong>. Each shard gives a permanent +5% boost to ALL production.</p>
+            </div>
+            <div class="info-section">
+                <h3>💎 Shard Upgrades</h3>
+                <p>Spend Cosmic Shards on permanent upgrades: increased tap power, auto-tapper, head start plasma, and more. These persist across prestiges.</p>
+            </div>
+            <div class="info-section">
+                <h3>🏆 Leaderboard</h3>
+                <p>Compete against other players globally! Your score is your total plasma earned across all time. Prestige to push your score to the leaderboard.</p>
+            </div>
         </div>
     </div>
   </div>
@@ -198,7 +255,6 @@
   <!-- Settings Modal -->
   <div id="settings-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
     <div style="background: var(--bg-surface); border: 1px solid var(--border-glow); padding: 30px; border-radius: var(--radius-xl); width: 85%; max-width: 320px; text-align: center; box-shadow: var(--glow-purple); position: relative;">
-        <!-- Modal close X -->
         <button onclick="closeSettings()" style="position: absolute; top: 12px; right: 16px; background: none; border: none; color: var(--text-muted); font-size: 1.6rem; cursor: pointer; padding: 5px;">✕</button>
         
         <h2 style="font-family: var(--font-display); color: var(--accent-cyan); margin-bottom: 24px;">SETTINGS</h2>
@@ -213,5 +269,16 @@
 </div>
 
 <script src="game.js"></script>
+<script>
+// Info modal functions
+function openInfoModal() {
+    playSound('click');
+    document.getElementById('info-modal').classList.add('active');
+}
+function closeInfoModal() {
+    playSound('click');
+    document.getElementById('info-modal').classList.remove('active');
+}
+</script>
 </body>
 </html>

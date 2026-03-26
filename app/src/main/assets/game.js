@@ -28,9 +28,9 @@ const GENERATOR_DEFS = [
 
 // ─── Upgrade Definitions ───
 const UPGRADE_DEFS = [
-  { id: 'click1', name: 'Focused Tap',      icon: '👆', desc: 'Click power x2',              cost: 100,    effect: () => { game.clickMultiplier *= 2; },           req: () => game.stats.totalClicks >= 10   },
-  { id: 'click2', name: 'Charged Fingers',  icon: '⚡', desc: 'Click power x3',              cost: 5000,   effect: () => { game.clickMultiplier *= 3; },           req: () => game.stats.totalClicks >= 100  },
-  { id: 'click3', name: 'Plasma Fist',      icon: '👊', desc: 'Click power x5',              cost: 500000, effect: () => { game.clickMultiplier *= 5; },           req: () => game.stats.totalClicks >= 500  },
+  { id: 'click1', name: 'Focused Tap',      icon: '👆', desc: 'Tap power x2',              cost: 100,    effect: () => { game.clickMultiplier *= 2; },           req: () => game.stats.totalClicks >= 10   },
+  { id: 'click2', name: 'Charged Fingers',  icon: '⚡', desc: 'Tap power x3',              cost: 5000,   effect: () => { game.clickMultiplier *= 3; },           req: () => game.stats.totalClicks >= 100  },
+  { id: 'click3', name: 'Plasma Fist',      icon: '👊', desc: 'Tap power x5',              cost: 500000, effect: () => { game.clickMultiplier *= 5; },           req: () => game.stats.totalClicks >= 500  },
   { id: 'gen1',   name: 'Spark Overcharge', icon: '✦',  desc: 'Sparks produce 5x',           cost: 500,    effect: () => { game.genMultipliers.spark  *= 5; },     req: () => getGenCount('spark')  >= 10    },
   { id: 'gen2',   name: 'Ember Catalyst',   icon: '🔥', desc: 'Embers produce 3x',           cost: 6000,   effect: () => { game.genMultipliers.ember  *= 3; },     req: () => getGenCount('ember')  >= 10    },
   { id: 'gen3',   name: 'Flare Amplifier',  icon: '☀️', desc: 'Solar Flares produce 3x',     cost: 70000,  effect: () => { game.genMultipliers.flare  *= 3; },     req: () => getGenCount('flare')  >= 10    },
@@ -42,7 +42,7 @@ const UPGRADE_DEFS = [
   { id: 'all1',   name: 'Cosmic Resonance', icon: '🪐', desc: 'All generators produce 2x',   cost: 1e7,    effect: () => { game.globalGenMultiplier   *= 2; },     req: () => game.stats.totalPlasma >= 5e6  },
   { id: 'all2',   name: 'Dimensional Flux', icon: '🌊', desc: 'All generators produce 3x',   cost: 1e9,    effect: () => { game.globalGenMultiplier   *= 3; },     req: () => game.stats.totalPlasma >= 5e8  },
   { id: 'all3',   name: 'Infinite Echo',    icon: '♾️', desc: 'All generators produce 5x',   cost: 1e12,   effect: () => { game.globalGenMultiplier   *= 5; },     req: () => game.stats.totalPlasma >= 5e11 },
-  { id: 'click4', name: 'Quantum Touch',    icon: '🫴', desc: 'Clicks give 1% of your /sec', cost: 1e8,    effect: () => { game.clickPercentOfRate = 0.01; },      req: () => game.stats.totalClicks >= 2000 },
+  { id: 'click4', name: 'Quantum Touch',    icon: '🫴', desc: 'Taps give 1% of your /sec', cost: 1e8,    effect: () => { game.clickPercentOfRate = 0.01; },      req: () => game.stats.totalClicks >= 2000 },
 ];
 
 // ─── Shard Upgrade Definitions (permanent, persist through prestige) ───
@@ -82,6 +82,8 @@ function createFreshState() {
       startTime: Date.now(),
       playerName: 'Citizen_' + Math.floor(1000 + Math.random() * 9000),
     },
+    sessionPlasma: 0,
+    sessionClicks: 0,
     leaderboard: [],
   };
 }
@@ -177,11 +179,11 @@ function openNameModal(isFirstPrestige = false) {
     const title = document.getElementById('name-modal-title');
     const cancelBtn = document.getElementById('name-cancel-btn');
     const input = document.getElementById('name-input');
-    
+
     input.value = game.stats.playerName.startsWith('Citizen_') ? '' : game.stats.playerName;
     input.classList.remove('error');
     document.getElementById('name-error').style.display = 'none';
-    
+
     if (isFirstPrestige) {
         title.textContent = "ESTABLISH LEADERBOARD IDENTITY";
         cancelBtn.textContent = "SKIP FOR NOW";
@@ -189,7 +191,7 @@ function openNameModal(isFirstPrestige = false) {
         title.textContent = "REGISTER CALLSIGN";
         cancelBtn.textContent = "CANCEL";
     }
-    
+
     modal.style.display = 'flex';
     setTimeout(() => input.focus(), 50);
 }
@@ -211,15 +213,15 @@ function confirmName() {
         document.getElementById('name-error').style.display = 'block';
         return;
     }
-    
+
     playSound('buy');
     game.stats.playerName = name;
-    
+
     if (window._lastMyRank > 0) window._lastMyRank = -1; // force UI rebuild
     if (document.getElementById('tab-leaderboard').classList.contains('active')) {
         updateLeaderboardLive();
     }
-    
+
     closeNameModal(true);
 }
 
@@ -238,7 +240,7 @@ function exitApp() {
 window.addEventListener('load', () => {
     history.pushState({ page: 'main' }, null, '');
     initNameInput();
-    
+
     // Dismiss Splash Screen
     setTimeout(() => {
         const splash = document.getElementById('splash-screen');
@@ -296,7 +298,7 @@ function getShardEffect(id) {
   return def.effect(lvl);
 }
 
-// ─── Click Handler ───
+// ─── Tap Handler ───
 function handleClick(e) {
   initAudio();
   playSound('click');
@@ -306,9 +308,18 @@ function handleClick(e) {
   game.stats.totalPlasma += power;
   game.stats.totalClicks++;
   game.stats.clickPlasma += power;
+  game.sessionPlasma += power;
+  game.sessionClicks++;
 
-  if (Math.random() < 0.3) spawnClickText(power); // Throttle click text
+  // Tap animation boost
+  var btn = document.getElementById('plasma-click-btn');
+  if (btn) {
+    btn.classList.remove('tap-burst');
+    void btn.offsetWidth;
+    btn.classList.add('tap-burst');
+  }
 
+  if (Math.random() < 0.3) spawnClickText(power);
   updateUI();
 }
 
@@ -381,43 +392,45 @@ function buyShardUpgrade(id) {
 function doPrestige(force = false) {
   const shardsEarned = getPrestigeShardsEarned();
   if (shardsEarned <= 0) return;
-  
+
   if (!force && game.prestigeCount === 0 && game.stats.playerName.startsWith('Citizen_')) {
       openNameModal(true);
-      return; 
+      return;
   }
-  
+
   showConfirmModal(
-    `Prestige for ${fmt(shardsEarned)} Cosmic Shards? All generators, upgrades, and plasma will reset.`,
+    'Prestige for ' + fmt(shardsEarned) + ' Cosmic Shards? All generators, upgrades, and plasma will reset.',
     function() {
       playSound('buy');
 
-      const flash = document.createElement('div');
+      var flash = document.createElement('div');
       flash.className = 'prestige-flash';
       document.body.appendChild(flash);
-      setTimeout(() => flash.remove(), 1100);
+      setTimeout(function() { flash.remove(); }, 1100);
 
-      const shards = game.cosmicShards + shardsEarned;
-      const totalShards = game.totalShardsEarned + shardsEarned;
-      const pCount = game.prestigeCount + 1;
-      const shardUpgs = { ...game.shardUpgrades };
-      const stats = { ...game.stats };
-      const lb = game.leaderboard || [];
-
-      game = createFreshState();
-      game.cosmicShards = shards;
-      game.totalShardsEarned = totalShards;
-      game.prestigeCount = pCount;
-      game.shardUpgrades = shardUpgs;
-      game.stats = stats;
-      game.leaderboard = lb;
+      var shards = game.cosmicShards + shardsEarned;
+      var totalShards = game.totalShardsEarned + shardsEarned;
+      var pCount = game.prestigeCount + 1;
+      var shardUpgs = Object.assign({}, game.shardUpgrades);
+      var savedStats = Object.assign({}, game.stats);
+      var lb = game.leaderboard || [];
 
       if (window.Android && window.Android.pushScore) {
           var myPlayerId = 'player_' + game.stats.playerName.replace(/[^a-zA-Z0-9]/g, '') + '_' + game.stats.startTime;
           window.Android.pushScore(myPlayerId, game.stats.playerName, game.stats.totalPlasma);
       }
 
-      const headStart = getShardEffect('shardStart');
+      game = createFreshState();
+      game.cosmicShards = shards;
+      game.totalShardsEarned = totalShards;
+      game.prestigeCount = pCount;
+      game.shardUpgrades = shardUpgs;
+      game.stats = savedStats;
+      game.leaderboard = lb;
+      game.sessionPlasma = 0;
+      game.sessionClicks = 0;
+
+      var headStart = getShardEffect('shardStart');
       if (headStart > 1) { game.plasma = headStart; game.totalPlasmaThisRun = headStart; }
       showToast('✨ Prestiged! +' + fmt(shardsEarned) + ' Cosmic Shards');
       renderAll();
@@ -445,11 +458,11 @@ function openLeaderboard() {
 const lbNames = ["CosmicW", "StarDust", "NovaKng", "PlasmaX", "VoidWlk", "AstroN", "Nebula9", "Qasar11", "GamerX", "Zenith", "OrbitG", "Pulse88", "Singlrty", "Apollo", "Drifter", "Pulsar", "Quantum", "GravityX", "Tachyon", "WarpSpd"];
 function initLeaderboardData() {
     if (!game.leaderboard) game.leaderboard = [];
-    
+
     // Check if existing data is valid (has rate property for live scoring)
     var hasValidBots = game.leaderboard.length > 0 && game.leaderboard[0].rate !== undefined;
     if (hasValidBots) return;
-    
+
     // Force regenerate local bots
     game.leaderboard = [];
     for (var i = 1; i <= 100; i++) {
@@ -458,7 +471,7 @@ function initLeaderboardData() {
         var exp = 3 + (x * 19);
         var baseScore = Math.pow(10, exp);
         var rate = baseScore / 43200;
-        
+
         game.leaderboard.push({
             id: 'bot_' + i,
             name: name.substring(0, 10),
@@ -474,7 +487,7 @@ function renderLeaderboard() {
     initLeaderboardData();
     window._lastMyRank = -1;
     updateLeaderboardLive();
-    
+
     // Fetch real players from Firebase and merge them in
     if (window.Android && window.Android.fetchLeaderboard) {
         window.Android.fetchLeaderboard();
@@ -488,7 +501,7 @@ window.updateLeaderboardFromAndroid = function(inputData) {
         if (data && data.length > 0) {
             // Remove any previously merged Firebase entries
             game.leaderboard = game.leaderboard.filter(function(e) { return e.id.indexOf('fb_') !== 0; });
-            
+
             // Add Firebase players into the pool alongside local bots
             data.forEach(function(entry, i) {
                 game.leaderboard.push({
@@ -500,7 +513,7 @@ window.updateLeaderboardFromAndroid = function(inputData) {
                     isPlayer: false
                 });
             });
-            
+
             window._lastMyRank = -1;
             var lbTab = document.getElementById('tab-leaderboard');
             if (lbTab && lbTab.classList.contains('active')) {
@@ -517,80 +530,90 @@ let lbViewMode = 'top';
 function toggleLeaderboardView() {
     playSound('click');
     lbViewMode = lbViewMode === 'top' ? 'local' : 'top';
-    
+
     const container = document.querySelector('.lb-list-container');
     if (container) {
         container.classList.remove('list-transition');
         void container.offsetWidth; // force reflow
         container.classList.add('list-transition');
     }
-    
+
     window._lastMyRank = -1; // force html rebuild for fade effect
     updateLeaderboardLive();
 }
 
 function updateLeaderboardLive() {
     if (!game.leaderboard || game.leaderboard.length === 0) return;
-    const myScore = game.stats.totalPlasma;
-    
+    const myScore = currentLbType === 'weekly'
+        ? game.stats.totalPlasma - (game._weeklyBaseScore || 0)
+        : game.stats.totalPlasma;
+
+    // For weekly, scale bot scores down to ~10% of alltime
+    const scoreFactor = currentLbType === 'weekly' ? 0.1 : 1.0;
+
     let pName = game.stats.playerName || 'Citizen_0000';
-    let pool = [...game.leaderboard, {
+    let pool = [...game.leaderboard.map(b => ({
+        ...b,
+        score: b.isPlayer ? b.score : b.score * scoreFactor
+    })), {
         id: 'player',
         name: pName,
         initial: pName.charAt(0).toUpperCase(),
-        score: myScore,
+        score: Math.max(0, myScore),
         isPlayer: true
     }];
-    
+
     pool.sort((a, b) => b.score - a.score);
-    
+
     let myRank = pool.findIndex(p => p.isPlayer) + 1;
-    
+
     const listEl = document.getElementById('lb-list');
     const podiumEl = document.getElementById('lb-podium');
-    
+
     if (listEl.children.length === 0 || window._lastMyRank !== myRank || window._lastLbView !== lbViewMode) {
         window._lastMyRank = myRank;
         window._lastLbView = lbViewMode;
-        
+
         let startIdx = 3;
         let endIdx = 100;
-        
+        const truncName = (n) => (n && n.length > 12) ? n.substring(0, 12) + '...' : (n || 'Unknown');
+
         if (lbViewMode === 'top') {
             podiumEl.style.display = 'flex';
             podiumEl.innerHTML = `
                 <div class="podium-slot rank-2 ${pool[1].isPlayer ? 'is-player' : ''}">
                     <div class="podium-avatar">${pool[1].initial}</div>
-                    <div class="podium-name">${pool[1].name}</div>
+                    <div class="podium-name">${truncName(pool[1].name)}</div>
                     <div class="podium-score" id="podium-score-2">${fmt(pool[1].score)}</div>
                 </div>
                 <div class="podium-slot rank-1 ${pool[0].isPlayer ? 'is-player' : ''}">
                     <div class="podium-avatar">${pool[0].initial}</div>
-                    <div class="podium-name">${pool[0].name}</div>
+                    <div class="podium-name">${truncName(pool[0].name)}</div>
                     <div class="podium-score" id="podium-score-1">${fmt(pool[0].score)}</div>
                 </div>
                 <div class="podium-slot rank-3 ${pool[2].isPlayer ? 'is-player' : ''}">
                     <div class="podium-avatar">${pool[2].initial}</div>
-                    <div class="podium-name">${pool[2].name}</div>
+                    <div class="podium-name">${truncName(pool[2].name)}</div>
                     <div class="podium-score" id="podium-score-3">${fmt(pool[2].score)}</div>
                 </div>
             `;
         } else {
             podiumEl.style.display = 'none';
             podiumEl.innerHTML = '';
-            
+
             // local neighborhood view (5 above, 5 below)
             startIdx = Math.max(0, myRank - 6);
             endIdx = Math.min(pool.length, startIdx + 11);
         }
-        
+
         let listHTML = '';
         for (let i = startIdx; i < endIdx; i++) {
             if (!pool[i]) break;
             listHTML += `
             <div class="lb-row ${pool[i].isPlayer ? 'is-player-row' : ''}">
                 <div class="lb-rank">#${i+1}</div>
-                <div class="lb-name">${pool[i].name}</div>
+                <div class="lb-name">${truncName(pool[i].name)}</div>
+                <div class="lb-dots"></div>
                 <div class="lb-score" id="list-score-${pool[i].id}">${fmt(pool[i].score)}</div>
             </div>`;
         }
@@ -601,27 +624,30 @@ function updateLeaderboardLive() {
             document.getElementById('podium-score-2').textContent = fmt(pool[1].score);
             document.getElementById('podium-score-3').textContent = fmt(pool[2].score);
         }
-        
+
         let startIdx = lbViewMode === 'top' ? 3 : Math.max(0, myRank - 6);
         let endIdx = lbViewMode === 'top' ? 100 : Math.min(pool.length, startIdx + 11);
-        
+
         for (let i = startIdx; i < endIdx; i++) {
             if (!pool[i]) break;
             const el = document.getElementById(`list-score-${pool[i].id}`);
             if (el) el.textContent = fmt(pool[i].score);
         }
     }
-    
+
     // Update footer
     const footerEl = document.getElementById('lb-footer');
-    
+
     if (footerEl.children.length === 0) {
         footerEl.innerHTML = `
             <div class="lb-footer-container">
                 <div class="lb-footer-rank" id="lb-footer-rank"></div>
                 <div class="lb-footer-name-col">
-                    <span class="lb-footer-name" id="lb-footer-name"></span>
-                    <span class="lb-edit-icon" onclick="openNameModal(false)">✏️</span>
+                    <div style="display:flex; align-items:center;">
+                        <span class="lb-footer-name" id="lb-footer-name"></span>
+                        <span class="lb-edit-icon" onclick="openNameModal(false)">✏️</span>
+                    </div>
+                    <div class="lb-footer-subtext" id="lb-footer-subtext"></div>
                 </div>
                 <div class="lb-footer-score" id="lb-footer-score"></div>
                 <div class="lb-footer-action">
@@ -630,11 +656,22 @@ function updateLeaderboardLive() {
             </div>
         `;
     }
-    
+
     document.getElementById('lb-footer-rank').textContent = `#${myRank > 100 ? '100+' : myRank}`;
-    document.getElementById('lb-footer-name').textContent = pName;
+    const truncName = (n) => n.length > 12 ? n.substring(0, 12) + '...' : n;
+    document.getElementById('lb-footer-name').textContent = truncName(pName);
     document.getElementById('lb-footer-score').textContent = fmt(myScore);
-    
+
+    const subtextEl = document.getElementById('lb-footer-subtext');
+    if (myRank > 1 && pool[myRank - 2]) {
+        const gap = pool[myRank - 2].score - myScore;
+        subtextEl.textContent = '+' + fmt(gap) + ' to next rank';
+    } else if (myRank === 1) {
+        subtextEl.textContent = 'Top of the world!';
+    } else {
+        subtextEl.textContent = '';
+    }
+
     const btn = document.getElementById('lb-locate-btn');
     if (lbViewMode === 'top') {
         btn.innerHTML = '⌖';
@@ -645,12 +682,16 @@ function updateLeaderboardLive() {
     }
 }
 
+let currentLbType = 'weekly';
+
 function switchLbTab(type, e) {
+    currentLbType = type;
     document.querySelectorAll('.lb-toggle-btn').forEach(b => b.classList.remove('active'));
     if(e && e.target) e.target.classList.add('active');
     playSound('click');
     document.getElementById('lb-podium').innerHTML = '';
     document.getElementById('lb-list').innerHTML = '';
+    window._lastMyRank = -1;
     renderLeaderboard();
 }
 
@@ -668,14 +709,14 @@ function initGeneratorsUI() {
 
 function updateGeneratorsUI() {
   GENERATOR_DEFS.forEach(def => {
-    const isLocked = game.stats.totalPlasma < def.unlockAt && game.generators[def.id] === 0;
+    const isLocked = game.totalPlasmaThisRun < def.unlockAt && game.generators[def.id] === 0;
     const cost = getGenCost(def);
     const output = getGenOutput(def);
     const count = game.generators[def.id];
-    
+
     const card = document.getElementById(`gen-card-${def.id}`);
     if (!card) return;
-    
+
     if(isLocked) {
       if(!card.classList.contains('locked')) card.classList.add('locked');
       document.getElementById(`gen-name-${def.id}`).textContent = '???';
@@ -714,7 +755,7 @@ function updateUpgradesUI() {
     if (!card) return;
     const owned = game.upgrades.includes(def.id);
     const visible = owned || def.req();
-    
+
     if (!visible) {
       card.style.display = 'none';
     } else {
@@ -755,10 +796,10 @@ function updateShardUpgradesUI() {
     const lvl = game.shardUpgrades[def.id] || 0;
     const maxed = lvl >= def.maxLvl;
     const cost = getShardUpgradeCost(def);
-    
+
     card.className = 'shard-card' + (maxed ? ' maxed' : '');
     document.getElementById(`shard-lvl-${def.id}`).textContent = `Lv. ${lvl} / ${def.maxLvl}`;
-    
+
     const action = document.getElementById(`shard-action-${def.id}`);
     if (maxed) {
       if (!action.querySelector('span')) {
@@ -782,7 +823,9 @@ function updateUI() {
 
   document.getElementById('plasma-amount').textContent = fmt(game.plasma);
   document.getElementById('plasma-rate').textContent = fmt(getTotalRate()) + ' / sec';
-  document.getElementById('click-power-display').textContent = fmt(getClickPower());
+  // Update tap-power span WITHOUT destroying it (setting textContent on the parent would kill the span)
+  var cpDisplay = document.getElementById('click-power-display');
+  if (cpDisplay) cpDisplay.textContent = fmt(getClickPower());
   document.getElementById('shard-count').textContent = fmt(game.cosmicShards);
   document.getElementById('prestige-level').textContent = game.prestigeCount;
 
@@ -808,13 +851,18 @@ function updateUI() {
 
   // Stats
   document.getElementById('stat-total-plasma').textContent = fmt(game.stats.totalPlasma);
-  document.getElementById('stat-total-clicks').textContent = fmt(game.stats.totalClicks);
-  document.getElementById('stat-click-plasma').textContent = fmt(game.stats.clickPlasma);
+  document.getElementById('stat-total-taps').textContent = fmt(game.stats.totalClicks);
+  document.getElementById('stat-tap-plasma').textContent = fmt(game.stats.clickPlasma);
   document.getElementById('stat-auto-plasma').textContent = fmt(game.stats.autoPlasma || 0);
   document.getElementById('stat-gen-plasma').textContent = fmt(game.stats.genPlasma);
   document.getElementById('stat-prestiges').textContent = game.prestigeCount;
   document.getElementById('stat-total-shards').textContent = fmt(game.totalShardsEarned);
   document.getElementById('stat-multiplier').textContent = 'x' + totalMult.toFixed(2);
+  // Session stats
+  var sessionPlasmaEl = document.getElementById('stat-session-plasma');
+  if (sessionPlasmaEl) sessionPlasmaEl.textContent = fmt(game.totalPlasmaThisRun);
+  var sessionTapsEl = document.getElementById('stat-session-taps');
+  if (sessionTapsEl) sessionTapsEl.textContent = fmt(game.sessionClicks || 0);
 
   // Leaderboard live update if active
   const lbTab = document.getElementById('tab-leaderboard');
@@ -971,27 +1019,27 @@ function showConfirmModal(message, onConfirm) {
   const msgEl = document.getElementById('confirm-message');
   const okBtn = document.getElementById('confirm-ok-btn');
   const cancelBtn = document.getElementById('confirm-cancel-btn');
-  
+
   msgEl.textContent = message;
   overlay.classList.add('active');
-  
+
   function cleanup() {
     overlay.classList.remove('active');
     okBtn.removeEventListener('click', handleOk);
     cancelBtn.removeEventListener('click', handleCancel);
   }
-  
+
   function handleOk() {
     playSound('buy');
     cleanup();
     onConfirm();
   }
-  
+
   function handleCancel() {
     playSound('click');
     cleanup();
   }
-  
+
   okBtn.addEventListener('click', handleOk);
   cancelBtn.addEventListener('click', handleCancel);
 }
@@ -1012,3 +1060,55 @@ function init() {
   setInterval(saveGame, 30000);
 }
 init();
+
+// ─── Particle System ───
+(function () {
+  var canvas = document.getElementById('particles-canvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var particles = [];
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function mkParticle(fromBottom) {
+    return {
+      x: Math.random() * canvas.width,
+      y: fromBottom ? canvas.height + 5 : Math.random() * canvas.height,
+      r: Math.random() * 1.6 + 0.3,
+      speedX: (Math.random() - 0.5) * 0.35,
+      speedY: -(Math.random() * 0.45 + 0.1),
+      alpha: Math.random() * 0.55 + 0.1,
+      fade: Math.random() * 0.0008 + 0.0003,
+      purple: Math.random() > 0.5
+    };
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  for (var i = 0; i < 75; i++) particles.push(mkParticle(false));
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (var j = particles.length - 1; j >= 0; j--) {
+      var p = particles[j];
+      p.x += p.speedX;
+      p.y += p.speedY;
+      p.alpha -= p.fade;
+      if (p.alpha <= 0 || p.y < -5) {
+        particles[j] = mkParticle(true);
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.purple
+          ? 'rgba(168,85,247,' + p.alpha + ')'
+          : 'rgba(34,211,238,' + p.alpha + ')';
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
