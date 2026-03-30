@@ -27,22 +27,33 @@ const GENERATOR_DEFS = [
 ];
 
 // ─── Upgrade Definitions ───
+// Tap chain:   ×2 → ×4 → ×8 → ×16 (doubles every tier; costs ~10× each step)
+// Gen upgrades: early gens get ×8–×10 (high impact on weak output); late gens get ×12–×20 (cost-gated)
+// Global mults: ×4 → ×8 → ×15 (massive but expensive; each step costs ~200× previous)
 const UPGRADE_DEFS = [
-  { id: 'click1', name: 'Focused Tap',      icon: '👆', desc: 'Tap power x2',              cost: 100,    effect: () => { game.clickMultiplier *= 2; },           req: () => game.stats.totalClicks >= 10   },
-  { id: 'click2', name: 'Charged Fingers',  icon: '⚡', desc: 'Tap power x3',              cost: 5000,   effect: () => { game.clickMultiplier *= 3; },           req: () => game.stats.totalClicks >= 100  },
-  { id: 'click3', name: 'Plasma Fist',      icon: '👊', desc: 'Tap power x5',              cost: 500000, effect: () => { game.clickMultiplier *= 5; },           req: () => game.stats.totalClicks >= 500  },
-  { id: 'gen1',   name: 'Spark Overcharge', icon: '✦',  desc: 'Sparks produce 5x',           cost: 500,    effect: () => { game.genMultipliers.spark  *= 5; },     req: () => getGenCount('spark')  >= 10    },
-  { id: 'gen2',   name: 'Ember Catalyst',   icon: '🔥', desc: 'Embers produce 3x',           cost: 6000,   effect: () => { game.genMultipliers.ember  *= 3; },     req: () => getGenCount('ember')  >= 10    },
-  { id: 'gen3',   name: 'Flare Amplifier',  icon: '☀️', desc: 'Solar Flares produce 3x',     cost: 70000,  effect: () => { game.genMultipliers.flare  *= 3; },     req: () => getGenCount('flare')  >= 10    },
-  { id: 'gen4',   name: 'Arc Intensifier',  icon: '⚡', desc: 'Plasma Arcs produce 3x',      cost: 900000, effect: () => { game.genMultipliers.arc    *= 3; },     req: () => getGenCount('arc')    >= 10    },
-  { id: 'gen5',   name: 'Fusion Optimizer', icon: '🌀', desc: 'Fusion Cores produce 3x',     cost: 1.2e7,  effect: () => { game.genMultipliers.fusion *= 3; },     req: () => getGenCount('fusion') >= 10    },
-  { id: 'gen6',   name: 'Nova Capacitor',   icon: '💥', desc: 'Nova Bursts produce 3x',      cost: 1.8e8,  effect: () => { game.genMultipliers.nova   *= 3; },     req: () => getGenCount('nova')   >= 10    },
-  { id: 'gen7',   name: 'Pulsar Regulator', icon: '🌟', desc: 'Pulsar Engines produce 3x',   cost: 2.8e9,  effect: () => { game.genMultipliers.pulsar *= 3; },     req: () => getGenCount('pulsar') >= 10    },
-  { id: 'gen8',   name: 'Quasar Condenser', icon: '🌌', desc: 'Quasars produce 3x',          cost: 4.5e10, effect: () => { game.genMultipliers.quasar *= 3; },     req: () => getGenCount('quasar') >= 10    },
-  { id: 'all1',   name: 'Cosmic Resonance', icon: '🪐', desc: 'All generators produce 2x',   cost: 1e7,    effect: () => { game.globalGenMultiplier   *= 2; },     req: () => game.stats.totalPlasma >= 5e6  },
-  { id: 'all2',   name: 'Dimensional Flux', icon: '🌊', desc: 'All generators produce 3x',   cost: 1e9,    effect: () => { game.globalGenMultiplier   *= 3; },     req: () => game.stats.totalPlasma >= 5e8  },
-  { id: 'all3',   name: 'Infinite Echo',    icon: '♾️', desc: 'All generators produce 5x',   cost: 1e12,   effect: () => { game.globalGenMultiplier   *= 5; },     req: () => game.stats.totalPlasma >= 5e11 },
-  { id: 'click4', name: 'Quantum Touch',    icon: '🫴', desc: 'Taps give 1% of your /sec', cost: 1e8,    effect: () => { game.clickPercentOfRate = 0.01; },      req: () => game.stats.totalClicks >= 2000 },
+  // ── Tap power chain (doubles each step) ──
+  { id: 'click1', name: 'Focused Tap',      icon: '👆', desc: 'Tap power ×2',                cost: 100,    effect: () => { game.clickMultiplier *= 2;  },          req: () => game.stats.totalClicks >= 10   },
+  { id: 'click2', name: 'Charged Fingers',  icon: '⚡', desc: 'Tap power ×4',                cost: 6000,   effect: () => { game.clickMultiplier *= 4;  },          req: () => game.stats.totalClicks >= 100  },
+  { id: 'click3', name: 'Plasma Fist',      icon: '👊', desc: 'Tap power ×8',                cost: 750000, effect: () => { game.clickMultiplier *= 8;  },          req: () => game.stats.totalClicks >= 500  },
+  { id: 'click5', name: 'Nova Strike',      icon: '💥', desc: 'Tap power ×16',               cost: 4e8,    effect: () => { game.clickMultiplier *= 16; },          req: () => game.stats.totalClicks >= 5000 },
+
+  // ── Per-generator upgrades (early gens: ×8–×10; mid: ×10–×12; late: ×15–×20) ──
+  { id: 'gen1',   name: 'Spark Overcharge', icon: '✦',  desc: 'Sparks produce ×8',            cost: 600,    effect: () => { game.genMultipliers.spark  *= 8;  },    req: () => getGenCount('spark')  >= 10    },
+  { id: 'gen2',   name: 'Ember Catalyst',   icon: '🔥', desc: 'Embers produce ×9',            cost: 10000,  effect: () => { game.genMultipliers.ember  *= 9;  },    req: () => getGenCount('ember')  >= 10    },
+  { id: 'gen3',   name: 'Flare Amplifier',  icon: '☀️', desc: 'Solar Flares produce ×10',     cost: 120000, effect: () => { game.genMultipliers.flare  *= 10; },    req: () => getGenCount('flare')  >= 10    },
+  { id: 'gen4',   name: 'Arc Intensifier',  icon: '⚡', desc: 'Plasma Arcs produce ×10',      cost: 1.8e6,  effect: () => { game.genMultipliers.arc    *= 10; },    req: () => getGenCount('arc')    >= 10    },
+  { id: 'gen5',   name: 'Fusion Optimizer', icon: '🌀', desc: 'Fusion Cores produce ×12',     cost: 2.8e7,  effect: () => { game.genMultipliers.fusion *= 12; },    req: () => getGenCount('fusion') >= 10    },
+  { id: 'gen6',   name: 'Nova Capacitor',   icon: '💥', desc: 'Nova Bursts produce ×12',      cost: 4.5e8,  effect: () => { game.genMultipliers.nova   *= 12; },    req: () => getGenCount('nova')   >= 10    },
+  { id: 'gen7',   name: 'Pulsar Regulator', icon: '🌟', desc: 'Pulsar Engines produce ×15',   cost: 7e9,    effect: () => { game.genMultipliers.pulsar *= 15; },    req: () => getGenCount('pulsar') >= 10    },
+  { id: 'gen8',   name: 'Quasar Condenser', icon: '🌌', desc: 'Quasars produce ×20',          cost: 1.2e11, effect: () => { game.genMultipliers.quasar *= 20; },    req: () => getGenCount('quasar') >= 10    },
+
+  // ── Global multipliers: ×4 → ×8 → ×15 (heavily gated by total plasma) ──
+  { id: 'all1',   name: 'Cosmic Resonance', icon: '🪐', desc: 'All generators ×4',            cost: 1.5e7,  effect: () => { game.globalGenMultiplier   *= 4;  },    req: () => game.stats.totalPlasma >= 6e6  },
+  { id: 'all2',   name: 'Dimensional Flux', icon: '🌊', desc: 'All generators ×8',            cost: 3e9,    effect: () => { game.globalGenMultiplier   *= 8;  },    req: () => game.stats.totalPlasma >= 1e9  },
+  { id: 'all3',   name: 'Infinite Echo',    icon: '♾️', desc: 'All generators ×15',           cost: 6e12,   effect: () => { game.globalGenMultiplier   *= 15; },    req: () => game.stats.totalPlasma >= 2e12 },
+
+  // ── Quantum Touch: 3% of /sec per tap (end-game scaling) ──
+  { id: 'click4', name: 'Quantum Touch',    icon: '🫴', desc: 'Each tap = 3% of your /sec',  cost: 3e8,    effect: () => { game.clickPercentOfRate = 0.03; },      req: () => game.stats.totalClicks >= 2000 },
 ];
 
 // ─── Shard Upgrade Definitions (permanent, persist through prestige) ───
@@ -265,10 +276,10 @@ window.addEventListener('popstate', (e) => {
 // ─── Helpers ───
 function getGenCount(id) { return game.generators[id] || 0; }
 function getGenCost(def) { return Math.ceil(def.baseCost * Math.pow(def.costMult, game.generators[def.id])); }
+function getShardBonus(shards) { return 1 + shards * 0.05; }
 function getGenOutput(def) {
   const shardGenMult = getShardEffect('shardGen');
-  const shardBonus = 1 + game.cosmicShards * 0.05;
-  return def.baseOutput * (game.genMultipliers[def.id] || 1) * game.globalGenMultiplier * shardBonus * shardGenMult;
+  return def.baseOutput * (game.genMultipliers[def.id] || 1) * game.globalGenMultiplier * getShardBonus(game.cosmicShards) * shardGenMult;
 }
 function getTotalRate() {
   let rate = 0;
@@ -278,8 +289,7 @@ function getTotalRate() {
 function getClickPower() {
   const shardClickMult = getShardEffect('shardClick');
   let base = game.clickMultiplier * shardClickMult;
-  const shardBonus = 1 + game.cosmicShards * 0.05;
-  base *= shardBonus;
+  base *= getShardBonus(game.cosmicShards);
   if (game.clickPercentOfRate > 0) base += getTotalRate() * game.clickPercentOfRate;
   return Math.max(1, base);
 }
@@ -829,7 +839,7 @@ function updateUI() {
   document.getElementById('shard-count').textContent = fmt(game.cosmicShards);
   document.getElementById('prestige-level').textContent = game.prestigeCount;
 
-  const totalMult = (1 + game.cosmicShards * 0.05) * game.globalGenMultiplier * getShardEffect('shardGen');
+  const totalMult = getShardBonus(game.cosmicShards) * game.globalGenMultiplier * getShardEffect('shardGen');
   document.getElementById('multiplier-display').textContent = 'x' + totalMult.toFixed(2);
   const holdingEl = document.getElementById('shard-holding-bonus');
   if (holdingEl) holdingEl.textContent = '+' + (game.cosmicShards * 5).toFixed(0) + '%';
@@ -843,7 +853,7 @@ function updateUI() {
   const newMultEl = document.getElementById('prestige-new-mult');
   if (newMultEl) {
     const newShards = game.cosmicShards + shardsOnPrestige;
-    const newMult = (1 + newShards * 0.05) * game.globalGenMultiplier * getShardEffect('shardGen');
+    const newMult = getShardBonus(newShards) * game.globalGenMultiplier * getShardEffect('shardGen');
     newMultEl.textContent = 'x' + newMult.toFixed(2);
   }
   const prestigeBtn = document.getElementById('prestige-btn');
