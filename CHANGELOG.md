@@ -1,5 +1,18 @@
 # Cosmic Plasma — Changelog
 
+## [1.2] — Retention Update
+
+### New Features
+- **Daily login streak** — 7-day calendar with escalating rewards (plasma → shards). Miss a day, streak resets.
+- **Achievement system** — 3 milestones: First Ascension (prestige), Generator Baron (10 of one gen), Gigaplasma (1B total)
+- **Offline earnings modal** — replaces silent toast with a full-screen Welcome Back screen showing time away + plasma earned
+
+### Under the Hood
+- `addPlasma()` helper extracted — eliminates the triple-field update scattered across 6 sites
+- Achievement checks moved to 1s interval (from 50ms tick)
+
+---
+
 ## [Unreleased] — Balance Pass & Code Cleanup
 
 ### Game Balance

@@ -268,6 +268,39 @@
 
 </div>
 
+<!-- Offline Earnings Modal -->
+<div id="offline-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-icon">⏰</div>
+    <h2 class="modal-title">Welcome Back!</h2>
+    <p class="modal-subtitle">You were away for <strong id="offline-time"></strong></p>
+    <div class="modal-reward-badge"><span id="offline-plasma">+0 Plasma</span></div>
+    <p class="modal-note">Offline production: 8-hour cap</p>
+    <button class="modal-btn" onclick="closeOfflineModal()">COLLECT</button>
+  </div>
+</div>
+
+<!-- Daily Login Modal -->
+<div id="daily-login-modal" class="modal-overlay">
+  <div class="modal-box modal-wide">
+    <div class="modal-icon">🎁</div>
+    <h2 class="modal-title">Daily Reward</h2>
+    <p id="daily-streak-status" class="modal-subtitle"></p>
+    <div id="daily-calendar" class="daily-calendar"></div>
+    <button class="modal-btn" onclick="claimDailyReward()">CLAIM REWARD</button>
+  </div>
+</div>
+
+<!-- Achievement Pop -->
+<div id="achievement-pop" class="achievement-pop">
+  <div class="ach-inner">
+    <span class="ach-label">ACHIEVEMENT UNLOCKED</span>
+    <span id="ach-icon" class="ach-icon"></span>
+    <span id="ach-title" class="ach-title"></span>
+    <span id="ach-subtitle" class="ach-subtitle"></span>
+  </div>
+</div>
+
 <script src="game.js"></script>
 <script>
 // Info modal functions

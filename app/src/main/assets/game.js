@@ -84,6 +84,9 @@ function createFreshState() {
     totalShardsEarned: 0,
     prestigeCount: 0,
     shardUpgrades: {},
+    lastLoginDate: null,
+    loginStreak: 0,
+    achievements: {},
     stats: {
       totalPlasma: 0,
       totalClicks: 0,
@@ -430,15 +433,23 @@ function doPrestige(force = false) {
           window.Android.pushScore(myPlayerId, game.stats.playerName, game.stats.totalPlasma);
       }
 
+      var savedAchievements = Object.assign({}, game.achievements);
+      var savedLastLogin    = game.lastLoginDate;
+      var savedLoginStreak  = game.loginStreak;
+
       game = createFreshState();
-      game.cosmicShards = shards;
+      game.cosmicShards      = shards;
       game.totalShardsEarned = totalShards;
-      game.prestigeCount = pCount;
-      game.shardUpgrades = shardUpgs;
-      game.stats = savedStats;
-      game.leaderboard = lb;
-      game.sessionPlasma = 0;
-      game.sessionClicks = 0;
+      game.prestigeCount     = pCount;
+      game.shardUpgrades     = shardUpgs;
+      game.achievements      = savedAchievements;
+      game.lastLoginDate     = savedLastLogin;
+      game.loginStreak       = savedLoginStreak;
+      game.stats             = savedStats;
+      game.leaderboard       = lb;
+      game.sessionPlasma     = 0;
+      game.sessionClicks     = 0;
+      checkAchievements();
 
       var headStart = getShardEffect('shardStart');
       if (headStart > 1) { game.plasma = headStart; game.totalPlasmaThisRun = headStart; }
@@ -951,6 +962,9 @@ function saveGame() {
     totalShardsEarned: game.totalShardsEarned,
     prestigeCount: game.prestigeCount,
     shardUpgrades: game.shardUpgrades,
+    achievements: game.achievements,
+    lastLoginDate: game.lastLoginDate,
+    loginStreak: game.loginStreak,
     stats: game.stats,
     leaderboard: game.leaderboard,
     savedAt: Date.now(),
@@ -995,7 +1009,7 @@ function loadGame() {
           game.totalPlasmaThisRun += offlineGain;
           game.stats.totalPlasma += offlineGain;
           game.stats.genPlasma += offlineGain;
-          showToast(`⏰ Offline for ${Math.floor(offlineSec / 60)}m — earned ${fmt(offlineGain)} plasma!`);
+          setTimeout(() => showOfflineModal(offlineGain, Math.min(offlineSec, 28800)), 400);
         }
       }
       if (game.leaderboard && game.leaderboard.length > 0) {
@@ -1063,11 +1077,126 @@ function showToast(msg) {
   setTimeout(() => el.remove(), 3000);
 }
 
+// ─── Modal Helper ───
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// ─── Offline Earnings Modal ───
+function showOfflineModal(plasma, secs) {
+  const hrs  = Math.floor(secs / 3600);
+  const mins = Math.floor((secs % 3600) / 60);
+  const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  document.getElementById('offline-time').textContent = timeStr;
+  document.getElementById('offline-plasma').textContent = '+' + fmt(plasma) + ' Plasma';
+  document.getElementById('offline-modal').classList.add('active');
+}
+
+function closeOfflineModal() { closeModal('offline-modal'); }
+
+// ─── Daily Login System ───
+const DAILY_REWARDS = [
+  { day: 1, label: '500 Plasma',  apply: () => { game.plasma += 500;   game.totalPlasmaThisRun += 500;   game.stats.totalPlasma += 500;   } },
+  { day: 2, label: '1K Plasma',   apply: () => { game.plasma += 1000;  game.totalPlasmaThisRun += 1000;  game.stats.totalPlasma += 1000;  } },
+  { day: 3, label: '2 Shards',    apply: () => { game.cosmicShards += 2;  game.totalShardsEarned += 2;  } },
+  { day: 4, label: '5K Plasma',   apply: () => { game.plasma += 5000;  game.totalPlasmaThisRun += 5000;  game.stats.totalPlasma += 5000;  } },
+  { day: 5, label: '5 Shards',    apply: () => { game.cosmicShards += 5;  game.totalShardsEarned += 5;  } },
+  { day: 6, label: '10K Plasma',  apply: () => { game.plasma += 10000; game.totalPlasmaThisRun += 10000; game.stats.totalPlasma += 10000; } },
+  { day: 7, label: '10 Shards',   apply: () => { game.cosmicShards += 10; game.totalShardsEarned += 10; } },
+];
+
+function getTodayStr() { return new Date().toISOString().slice(0, 10); }
+
+function checkDailyLogin() {
+  const today = getTodayStr();
+  if (game.lastLoginDate === today) return;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  const streakBroken = game.lastLoginDate && game.lastLoginDate !== yesterdayStr;
+  if (streakBroken) game.loginStreak = 0;
+
+  game.loginStreak = (game.loginStreak || 0) + 1;
+  if (game.loginStreak > 7) game.loginStreak = 1;
+
+  showDailyLoginModal(streakBroken);
+}
+
+function showDailyLoginModal(streakBroken) {
+  const streak = game.loginStreak;
+  document.getElementById('daily-streak-status').textContent = streakBroken
+    ? '💔 Streak reset — starting fresh!'
+    : `🔥 Day ${streak} streak!`;
+
+  const calendarEl = document.getElementById('daily-calendar');
+  calendarEl.innerHTML = '';
+  DAILY_REWARDS.forEach(r => {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day' +
+      (r.day < streak ? ' claimed' : '') +
+      (r.day === streak ? ' today' : '') +
+      (r.day > streak ? ' locked' : '');
+    cell.innerHTML = `<div class="cal-day-num">Day ${r.day}</div><div class="cal-reward">${r.label}</div>`;
+    calendarEl.appendChild(cell);
+  });
+  document.getElementById('daily-login-modal').classList.add('active');
+}
+
+function claimDailyReward() {
+  const reward = DAILY_REWARDS.find(r => r.day === game.loginStreak);
+  if (reward) reward.apply();
+  game.lastLoginDate = getTodayStr();
+  closeModal('daily-login-modal');
+  showToast(`🎁 Day ${game.loginStreak} reward: ${reward ? reward.label : ''}`);
+  saveGame();
+  updateUI();
+}
+
+// ─── Achievement System ───
+const ACHIEVEMENT_DEFS = [
+  { id: 'first_ascension', title: 'First Ascension', subtitle: 'You prestiged for the first time.', icon: '✨', check: () => game.prestigeCount >= 1 },
+  { id: 'generator_baron', title: 'Generator Baron',  subtitle: 'Owned 10 of the same generator.',  icon: '🏭', check: () => GENERATOR_DEFS.some(def => game.generators[def.id] >= 10) },
+  { id: 'gigaplasma',      title: 'Gigaplasma',       subtitle: 'Generated 1 billion total plasma.', icon: '🌌', check: () => game.stats.totalPlasma >= 1e9 },
+];
+
+let achievementQueue = [];
+let achievementShowing = false;
+
+function checkAchievements() {
+  if (!game.achievements) game.achievements = {};
+  ACHIEVEMENT_DEFS.forEach(def => {
+    if (!game.achievements[def.id] && def.check()) {
+      game.achievements[def.id] = true;
+      achievementQueue.push(def);
+    }
+  });
+  if (!achievementShowing && achievementQueue.length > 0) showNextAchievement();
+}
+
+function showNextAchievement() {
+  if (achievementQueue.length === 0) { achievementShowing = false; return; }
+  achievementShowing = true;
+  const def = achievementQueue.shift();
+  document.getElementById('ach-icon').textContent = def.icon;
+  document.getElementById('ach-title').textContent = def.title;
+  document.getElementById('ach-subtitle').textContent = def.subtitle;
+  document.getElementById('achievement-pop').classList.add('active');
+  showToast(`🏆 Achievement: ${def.title}`);
+  setTimeout(() => {
+    document.getElementById('achievement-pop').classList.remove('active');
+    setTimeout(showNextAchievement, 400);
+  }, 3000);
+}
+
 function init() {
   loadGame();
   renderAll();
+  setTimeout(checkDailyLogin, 600);
   requestAnimationFrame(tick);
   setInterval(saveGame, 30000);
+  setInterval(checkAchievements, 1000);
 }
 init();
 

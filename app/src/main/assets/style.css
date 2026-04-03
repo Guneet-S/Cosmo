@@ -1693,3 +1693,107 @@ body {
         padding: 9px 5px;
     }
 }
+
+/* ===== OFFLINE / DAILY / ACHIEVEMENT MODALS ===== */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(6, 6, 15, 0.85);
+    backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+
+.modal-box {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-xl);
+    padding: 32px 28px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(120, 80, 255, 0.2), 0 20px 60px rgba(0,0,0,0.5);
+    animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-wide { max-width: 420px; }
+
+@keyframes modalPop {
+    0%  { opacity: 0; transform: scale(0.88) translateY(20px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-icon { font-size: 3rem; margin-bottom: 12px; filter: drop-shadow(0 0 16px rgba(168,85,247,0.5)); }
+.modal-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; letter-spacing: 2px; color: var(--text-primary); margin-bottom: 6px; }
+.modal-subtitle { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px; }
+.modal-subtitle strong { color: var(--accent-cyan); }
+.modal-reward-badge {
+    background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(34,211,238,0.15));
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-lg);
+    padding: 16px 24px;
+    margin-bottom: 12px;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 20px rgba(34,211,238,0.4);
+}
+.modal-note { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 24px; }
+.modal-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+    border: none;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 20px rgba(168,85,247,0.3);
+}
+.modal-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(168,85,247,0.45); }
+
+/* Daily Calendar */
+.daily-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 20px; }
+.calendar-day { border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; border: 1px solid var(--border-glass); background: var(--bg-card); transition: all 0.2s ease; }
+.calendar-day.claimed { border-color: var(--accent-green); background: rgba(16,185,129,0.08); opacity: 0.6; }
+.calendar-day.today { border-color: var(--accent-gold); background: rgba(245,158,11,0.12); box-shadow: 0 0 16px rgba(245,158,11,0.25); }
+.calendar-day.locked { opacity: 0.4; }
+.cal-day-num { font-family: var(--font-display); font-size: 0.55rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 700; }
+.cal-reward { font-size: 0.6rem; color: var(--text-secondary); line-height: 1.2; }
+.calendar-day.today .cal-day-num { color: var(--accent-gold); }
+.calendar-day.today .cal-reward { color: var(--text-primary); font-weight: 600; }
+.calendar-day.claimed .cal-day-num { color: var(--accent-green); }
+
+/* Achievement Pop */
+.achievement-pop { display: none; position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 3000; padding-top: 12px; }
+.achievement-pop.active { display: block; animation: achSlideDown 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes achSlideDown {
+    0%  { opacity: 0; transform: translateX(-50%) translateY(-40px); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.ach-inner {
+    background: var(--bg-surface);
+    border: 1px solid var(--accent-gold);
+    border-radius: var(--radius-lg);
+    padding: 14px 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    box-shadow: 0 0 30px rgba(245,158,11,0.3), 0 8px 30px rgba(0,0,0,0.5);
+    min-width: 260px; text-align: center;
+}
+.ach-label { font-family: var(--font-display); font-size: 0.55rem; letter-spacing: 3px; color: var(--accent-gold); text-transform: uppercase; }
+.ach-icon { font-size: 2rem; margin: 4px 0; filter: drop-shadow(0 0 10px rgba(245,158,11,0.6)); }
+.ach-title { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.ach-subtitle { font-size: 0.75rem; color: var(--text-secondary); }
+
+@media (max-width: 480px) {
+    .daily-calendar { grid-template-columns: repeat(4, 1fr); }
+    .modal-box { padding: 24px 18px; }
+}
