@@ -117,7 +117,7 @@ function createFreshState() {
     sessionPlasma: 0,
     sessionClicks: 0,
     leaderboard: [],
-    dailyChallenges: { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0 },
+    dailyChallenges: { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0, gensBoughtToday: {} },
   };
 }
 
@@ -410,6 +410,9 @@ function buyGenerator(id, silent = false) {
     playSound('buy');
     game.plasma -= cost;
     game.generators[def.id]++;
+    if (game.dailyChallenges && game.dailyChallenges.date === getTodayStr()) {
+      game.dailyChallenges.gensBoughtToday[id] = (game.dailyChallenges.gensBoughtToday[id] || 0) + 1;
+    }
     checkChallengeCompletion();
     if (tutorialActive && tutorialStep === 1 && id === 'spark') advanceTutorial();
     if (!silent) updateUI();
@@ -429,6 +432,10 @@ function buyMaxGenerator(id) {
   playSound('buy');
   game.plasma -= totalCost;
   game.generators[def.id] += n;
+  if (game.dailyChallenges && game.dailyChallenges.date === getTodayStr()) {
+    game.dailyChallenges.gensBoughtToday[id] = (game.dailyChallenges.gensBoughtToday[id] || 0) + n;
+  }
+  checkChallengeCompletion();
   updateUI();
 }
 
@@ -1143,12 +1150,13 @@ function loadGame() {
     }
 
     if (!game.stats.playerName) game.stats.playerName = 'Citizen_' + Math.floor(1000 + Math.random() * 9000);
-    if (!game.dailyChallenges) game.dailyChallenges = { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0 };
+    if (!game.dailyChallenges) game.dailyChallenges = { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0, gensBoughtToday: {} };
+    if (!game.dailyChallenges.gensBoughtToday) game.dailyChallenges.gensBoughtToday = {};
 
     // Compute offline production
     if (data.savedAt) {
       const offlineSec = (Date.now() - data.savedAt) / 1000;
-      if (offlineSec > 5) {
+      if (offlineSec > 60) {
         const offlineRate = getTotalRate();
         const offlineGain = offlineRate * Math.min(offlineSec, 28800) * 0.8; // cap at 8h, 80% efficiency
         if (offlineGain > 0) {
@@ -1445,13 +1453,14 @@ function checkAndRefreshDailyChallenges() {
     game.dailyChallenges.completed = [];
     game.dailyChallenges.tapsToday = 0;
     game.dailyChallenges.prestigeToday = 0;
+    game.dailyChallenges.gensBoughtToday = {};
     saveGame();
   }
 }
 
 function getChallengeProgress(ch) {
   const dc = game.dailyChallenges;
-  if (ch.type === 'buy-generators') return game.generators[ch.genId] || 0;
+  if (ch.type === 'buy-generators') return (dc.gensBoughtToday && dc.gensBoughtToday[ch.genId]) || 0;
   if (ch.type === 'earn-plasma')    return game.totalPlasmaThisRun;
   if (ch.type === 'tap-count')      return dc.tapsToday || 0;
   if (ch.type === 'prestige')       return dc.prestigeToday || 0;

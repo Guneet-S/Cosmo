@@ -1,8 +1,14 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
 }
+
+val keystoreProps = Properties()
+val keystorePropsFile = rootProject.file("local.properties")
+if (keystorePropsFile.exists()) keystoreProps.load(keystorePropsFile.inputStream())
 
 android {
     namespace = "com.gunman.cosmicplasma"
@@ -16,18 +22,18 @@ android {
         applicationId = "com.gunman.cosmicplasma"
         minSdk = 24
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 7
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("../cosmicplasma.jks")
-            storePassword = "cosmicplasma123"
-            keyAlias = "cosmicplasma"
-            keyPassword = "cosmicplasma123"
+            storeFile = file(keystoreProps.getProperty("storeFile", "../cosmicplasma.jks"))
+            storePassword = keystoreProps.getProperty("storePassword", "")
+            keyAlias = keystoreProps.getProperty("keyAlias", "cosmicplasma")
+            keyPassword = keystoreProps.getProperty("keyPassword", "")
         }
     }
 
