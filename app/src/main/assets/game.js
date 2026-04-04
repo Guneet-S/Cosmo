@@ -476,32 +476,55 @@ function openLeaderboard() {
   renderLeaderboard();
 }
 
-const lbNames = ["CosmicW", "StarDust", "NovaKng", "PlasmaX", "VoidWlk", "AstroN", "Nebula9", "Qasar11", "GamerX", "Zenith", "OrbitG", "Pulse88", "Singlrty", "Apollo", "Drifter", "Pulsar", "Quantum", "GravityX", "Tachyon", "WarpSpd"];
+const lbNames = [
+  "CosmicW","StarDust","NovaKng","PlasmaX","VoidWlk","AstroN","Nebula9","Qasar11",
+  "GamerX","Zenith","OrbitG","Pulse88","Singlrty","Apollo","Drifter","Pulsar",
+  "Quantum","GravityX","Tachyon","WarpSpd","IonFlux","DarkMtr","ArcLight","FuseCore",
+  "Photonx","CelestX","HyperG","SingularR","PlasmaBrst","VortexQ","NeutronZ","SolarRift",
+  "GalacticB","InfiniteP","CrystalV","EchoWave","StarlordK","NovaDawn","PulsarX","QuasarJ"
+];
+
 function initLeaderboardData() {
     if (!game.leaderboard) game.leaderboard = [];
 
-    // Check if existing data is valid (has rate property for live scoring)
-    var hasValidBots = game.leaderboard.length > 0 && game.leaderboard[0].rate !== undefined;
-    if (hasValidBots) return;
+    // Count actual bot entries — Firebase entries (fb_*) don't count
+    var botCount = game.leaderboard.filter(function(e) { return e.id && e.id.indexOf('bot_') === 0; }).length;
+    if (botCount >= 100) return;
 
-    // Force regenerate local bots
+    // Preserve any Firebase entries already merged in
+    var fbEntries = game.leaderboard.filter(function(e) { return e.id && e.id.indexOf('fb_') === 0; });
     game.leaderboard = [];
+
     for (var i = 1; i <= 100; i++) {
-        var name = lbNames[Math.floor(Math.random() * lbNames.length)] + Math.floor(Math.random() * 999);
-        var x = (100 - i) / 99;
-        var exp = 3 + (x * 19);
-        var baseScore = Math.pow(10, exp);
-        var rate = baseScore / 43200;
+        var baseName = lbNames[Math.floor(Math.random() * lbNames.length)];
+        var suffix = Math.floor(Math.random() * 99);
+        var name = (baseName + suffix).substring(0, 12);
+        var x = (100 - i) / 99; // 1.0 = rank 1, 0.0 = rank 100
+
+        // All-time: 10^6 (rank 100) → 10^14 (rank 1)
+        var atScore = Math.pow(10, 6 + x * 8);
+        // Grows ~1 full tier per week so top bots stay competitive
+        var atRate  = atScore / (7 * 24 * 3600);
+
+        // Weekly/session: 10^4 (rank 100) → 10^9 (rank 1)
+        // Represents a realistic single session's worth of plasma
+        var wkScore = Math.pow(10, 4 + x * 5);
+        var wkRate  = wkScore / (24 * 3600); // grows ~1 tier per day
 
         game.leaderboard.push({
             id: 'bot_' + i,
-            name: name.substring(0, 10),
+            name: name,
             initial: name.charAt(0).toUpperCase(),
-            score: baseScore,
-            rate: rate,
+            score: atScore,
+            weeklyScore: wkScore,
+            rate: atRate,
+            weeklyRate: wkRate,
             isPlayer: false
         });
     }
+
+    // Re-add Firebase entries after bots
+    game.leaderboard = game.leaderboard.concat(fbEntries);
 }
 
 function renderLeaderboard() {
@@ -525,12 +548,17 @@ window.updateLeaderboardFromAndroid = function(inputData) {
 
             // Add Firebase players into the pool alongside local bots
             data.forEach(function(entry, i) {
+                var atScore = entry.score || 0;
+                // Estimate weekly as ~1% of all-time for real players (no session data stored)
+                var wkScore = entry.weeklyScore || atScore * 0.01;
                 game.leaderboard.push({
                     id: 'fb_' + i,
                     name: entry.name || 'Unknown',
                     initial: (entry.name && entry.name.length > 0) ? entry.name.charAt(0).toUpperCase() : '?',
-                    score: entry.score || 0,
-                    rate: 0, // real players don't auto-grow
+                    score: atScore,
+                    weeklyScore: wkScore,
+                    rate: 0,
+                    weeklyRate: 0,
                     isPlayer: false
                 });
             });
@@ -565,17 +593,19 @@ function toggleLeaderboardView() {
 
 function updateLeaderboardLive() {
     if (!game.leaderboard || game.leaderboard.length === 0) return;
-    const myScore = currentLbType === 'weekly'
-        ? game.stats.totalPlasma - (game._weeklyBaseScore || 0)
-        : game.stats.totalPlasma;
 
-    // For weekly, scale bot scores down to ~10% of alltime
-    const scoreFactor = currentLbType === 'weekly' ? 0.1 : 1.0;
+    const isWeekly = currentLbType === 'weekly';
+
+    // All-time: total plasma ever earned
+    // Weekly/session: plasma earned in the current run (resets on prestige)
+    const myScore = isWeekly ? game.totalPlasmaThisRun : game.stats.totalPlasma;
 
     let pName = game.stats.playerName || 'Citizen_0000';
     let pool = [...game.leaderboard.map(b => ({
         ...b,
-        score: b.isPlayer ? b.score : b.score * scoreFactor
+        score: isWeekly
+            ? (b.weeklyScore !== undefined ? b.weeklyScore : b.score * 0.01)
+            : b.score
     })), {
         id: 'player',
         name: pName,
@@ -934,7 +964,10 @@ function tick() {
   }
 
   if (game.leaderboard && game.leaderboard.length > 0) {
-      game.leaderboard.forEach(b => { if (b.rate) b.score += b.rate * dt; });
+      game.leaderboard.forEach(b => {
+          if (b.rate) b.score += b.rate * dt;
+          if (b.weeklyRate) b.weeklyScore += b.weeklyRate * dt;
+      });
   }
 
   if (now - lastUIUpdateTime > 200) {
@@ -1013,7 +1046,11 @@ function loadGame() {
         }
       }
       if (game.leaderboard && game.leaderboard.length > 0) {
-          game.leaderboard.forEach(b => { if (b.rate) b.score += b.rate * offlineSec; });
+          game.leaderboard.forEach(b => {
+              if (b.rate) b.score += b.rate * offlineSec;
+              // Weekly scores capped at 1 day of offline growth so session board stays competitive
+              if (b.weeklyRate) b.weeklyScore += b.weeklyRate * Math.min(offlineSec, 86400);
+          });
       }
     }
     return true;
