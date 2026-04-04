@@ -1529,7 +1529,18 @@ const TUTORIAL_STEPS = [
 
 function initTutorial() {
   if (localStorage.getItem('cosmicPlasma_tutorialDone')) return;
-  startTutorial();
+  const modal = document.getElementById('daily-login-modal');
+  if (modal && modal.classList.contains('active')) {
+    const observer = new MutationObserver(() => {
+      if (!modal.classList.contains('active')) {
+        observer.disconnect();
+        setTimeout(startTutorial, 400);
+      }
+    });
+    observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+  } else {
+    startTutorial();
+  }
 }
 
 function startTutorial() {

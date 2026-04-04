@@ -88,30 +88,34 @@ body {
 .header-title-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    position: relative;
-    padding: 0 165px;
+    padding: 0 8px;
+    gap: 6px;
+}
+
+.header-title-row .game-title {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .header-actions {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
     display: flex;
-    gap: 8px;
-    z-index: 100;
+    gap: 2px;
+    flex-shrink: 0;
 }
 
 .header-icon-btn {
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     cursor: pointer;
     transition: transform 0.2s, filter 0.2s;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    padding: 6px;
+    padding: 4px;
     filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.4));
 }
 
@@ -126,9 +130,10 @@ body {
 
 .game-title {
     font-family: var(--font-display);
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 900;
-    letter-spacing: 4px;
+    letter-spacing: 2px;
+    white-space: nowrap;
     color: var(--text-primary);
     text-shadow: 0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.2);
 }
