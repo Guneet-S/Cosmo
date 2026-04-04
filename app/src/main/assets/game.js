@@ -1056,7 +1056,7 @@ function loadGame() {
       const offlineSec = (Date.now() - data.savedAt) / 1000;
       if (offlineSec > 5) {
         const offlineRate = getTotalRate();
-        const offlineGain = offlineRate * Math.min(offlineSec, 28800); // cap at 8h
+        const offlineGain = offlineRate * Math.min(offlineSec, 28800) * 0.8; // cap at 8h, 80% efficiency
         if (offlineGain > 0) {
           game.plasma += offlineGain;
           game.totalPlasmaThisRun += offlineGain;
