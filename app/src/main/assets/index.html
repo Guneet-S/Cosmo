@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Cosmic Plasma — An infinite idle game where you harness plasma energy across the cosmos. Prestige to earn Cosmic Shards and grow ever more powerful.">
   <title>Cosmic Plasma — Idle Prestige Game</title>
+  <style>html,body{background:#050510!important}</style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -29,9 +30,10 @@
     <div class="header-title-row">
       <h1 class="game-title">COSMIC <span class="accent">PLASMA</span></h1>
       <div class="header-actions">
-        <button id="daily-btn" class="header-icon-btn" onclick="checkDailyLogin()" title="Daily Reward">🎁</button>
-        <button id="ach-btn"   class="header-icon-btn" onclick="openAchievements()" title="Achievements">🏆</button>
-        <button id="settings-btn" class="header-icon-btn settings" onclick="openSettings()" aria-label="Settings">⚙️</button>
+        <button id="daily-btn"      class="header-icon-btn" onclick="checkDailyLogin()" title="Daily Reward">🎁</button>
+        <button id="ach-btn"        class="header-icon-btn" onclick="openAchievements()" title="Achievements">🏆</button>
+        <button id="challenges-btn" class="header-icon-btn" onclick="openDailyChallengesModal()" title="Daily Challenges">🎯</button>
+        <button id="settings-btn"   class="header-icon-btn settings" onclick="openSettings()" aria-label="Settings">⚙️</button>
       </div>
     </div>
     <div class="header-stats">
@@ -65,6 +67,11 @@
         <span class="click-icon">⚛</span>
       </div>
     </button>
+    <div id="combo-display" class="combo-display" style="display:none;">
+      <span id="combo-count">0</span>
+      <span class="combo-label">COMBO</span>
+      <span id="combo-mult"></span>
+    </div>
     <div class="plasma-actions-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 320px; margin: 15px auto 0 auto; padding: 0 10px;">
       <div style="width: 80px;"></div> <!-- Spacer -->
       <div class="click-power-label" id="tap-power-label" style="margin-top: 0;">Tap Power: <span id="click-power-display">1</span></div>
@@ -78,8 +85,8 @@
   <!-- Tab navigation -->
   <nav id="tab-nav">
     <button class="tab-btn active" data-tab="generators" onclick="switchTab('generators')">Generators</button>
-    <button class="tab-btn" data-tab="upgrades" onclick="switchTab('upgrades')">Upgrades</button>
-    <button class="tab-btn" data-tab="prestige" onclick="switchTab('prestige')">Prestige</button>
+    <button id="tab-btn-upgrades" class="tab-btn" data-tab="upgrades" onclick="switchTab('upgrades')">Upgrades</button>
+    <button id="tab-btn-prestige" class="tab-btn" data-tab="prestige" onclick="switchTab('prestige')">Prestige</button>
     <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">Stats</button>
   </nav>
 
@@ -300,6 +307,32 @@
     <h2 class="modal-title">Achievements</h2>
     <div id="achievements-list" style="width:100%;margin:12px 0 4px;display:flex;flex-direction:column;gap:10px;"></div>
     <button class="modal-btn" onclick="closeModal('achievements-modal')">CLOSE</button>
+  </div>
+</div>
+
+<!-- Daily Challenges Modal -->
+<div id="daily-challenges-modal" class="modal-overlay">
+  <div class="modal-box modal-wide">
+    <div class="modal-icon">🎯</div>
+    <h2 class="modal-title">Daily Challenges</h2>
+    <p id="daily-challenges-date" class="modal-subtitle"></p>
+    <div id="daily-challenges-list" style="width:100%;margin:12px 0 4px;"></div>
+    <button class="modal-btn" onclick="closeModal('daily-challenges-modal')">CLOSE</button>
+  </div>
+</div>
+
+<!-- Tutorial Overlay -->
+<div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:5000;pointer-events:none;">
+  <div id="tutorial-highlight" style="position:fixed;border:2px solid var(--accent-cyan);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.65),0 0 24px var(--accent-cyan);pointer-events:none;transition:all 0.3s ease;"></div>
+  <div id="tutorial-tip" style="position:fixed;background:var(--bg-surface);border:1px solid var(--accent-cyan);border-radius:12px;padding:14px 16px;max-width:240px;pointer-events:auto;z-index:5001;box-shadow:0 0 20px rgba(34,211,238,0.3);">
+    <p id="tutorial-text" style="font-family:var(--font-body);font-size:0.88rem;color:var(--text-primary);line-height:1.5;margin:0 0 12px 0;"></p>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span id="tutorial-step-num" style="font-family:var(--font-display);font-size:0.6rem;color:var(--text-muted);"></span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="skipTutorial()" style="background:transparent;border:1px solid var(--border-glass);border-radius:6px;color:var(--text-muted);font-family:var(--font-display);font-size:0.6rem;padding:5px 12px;cursor:pointer;">SKIP</button>
+        <button onclick="advanceTutorial()" style="background:rgba(34,211,238,0.15);border:1px solid var(--accent-cyan);border-radius:6px;color:var(--text-primary);font-family:var(--font-display);font-size:0.6rem;font-weight:700;padding:5px 12px;cursor:pointer;">NEXT →</button>
+      </div>
+    </div>
   </div>
 </div>
 

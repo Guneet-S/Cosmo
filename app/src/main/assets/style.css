@@ -90,7 +90,7 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
-    padding: 0 50px;
+    padding: 0 165px;
 }
 
 .header-actions {
@@ -1079,9 +1079,7 @@ body {
 }
 
 .lb-list-container {
-    max-height: 45vh;
-    overflow-y: auto;
-    margin-bottom: 80px;
+    margin-bottom: 90px;
     padding-right: 4px;
     transition: opacity 0.3s;
 }
@@ -1422,6 +1420,121 @@ body {
     100% {
         opacity: 0;
     }
+}
+
+/* ===== COMBO DISPLAY ===== */
+.combo-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 4px auto 0;
+    height: 28px;
+    font-family: var(--font-display);
+    animation: fadeIn 0.2s ease;
+}
+
+#combo-count {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 12px rgba(34,211,238,0.7);
+}
+
+.combo-label {
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+}
+
+#combo-mult {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #F59E0B;
+}
+
+.combo-display.combo-pulse {
+    animation: comboPulse 0.35s ease-out;
+}
+
+@keyframes comboPulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.45); }
+    100% { transform: scale(1); }
+}
+
+.combo-display.fading {
+    animation: comboFade 0.4s ease-out forwards;
+}
+
+@keyframes comboFade {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ===== DAILY CHALLENGES ===== */
+.challenge-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    text-align: left;
+}
+
+.challenge-card.completed {
+    border-color: #22c55e;
+    opacity: 0.6;
+}
+
+.challenge-check {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.challenge-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.challenge-label {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.challenge-progress-text {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.challenge-bar-wrap {
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+.challenge-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.challenge-reward {
+    font-family: var(--font-display);
+    font-size: 0.62rem;
+    color: #F59E0B;
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 60px;
 }
 
 /* ===== SPLASH SCREEN ===== */

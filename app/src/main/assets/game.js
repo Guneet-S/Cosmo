@@ -117,12 +117,28 @@ function createFreshState() {
     sessionPlasma: 0,
     sessionClicks: 0,
     leaderboard: [],
+    dailyChallenges: { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0 },
   };
 }
 
 let game = createFreshState();
 let lastTickTime = Date.now();
 let lastUIUpdateTime = 0;
+
+// ─── Combo State (session only, no persistence) ───
+let comboCount = 0;
+let comboTimestamp = 0;
+let comboFadeTimer = null;
+const COMBO_RESET_MS = 2000;
+const COMBO_TIERS = [
+  { min: 20, mult: 2.0, label: '2×' },
+  { min: 10, mult: 1.5, label: '1.5×' },
+  { min: 5,  mult: 1.25, label: '1.25×' },
+];
+
+// ─── Tutorial State ───
+let tutorialActive = false;
+let tutorialStep = 0;
 
 // ─── Audio & Settings ───
 let adx = null;
@@ -333,7 +349,17 @@ function getShardEffect(id) {
 function handleClick(e) {
   initAudio();
   playSound('click');
-  const power = getClickPower();
+
+  // Combo tracking
+  const now = Date.now();
+  if (now - comboTimestamp > COMBO_RESET_MS) comboCount = 0;
+  comboCount++;
+  comboTimestamp = now;
+  clearTimeout(comboFadeTimer);
+  comboFadeTimer = setTimeout(() => { comboCount = 0; resetComboUI(); }, COMBO_RESET_MS);
+
+  const comboMult = getComboMultiplier();
+  const power = getClickPower() * comboMult;
   game.plasma += power;
   game.totalPlasmaThisRun += power;
   game.stats.totalPlasma += power;
@@ -341,6 +367,15 @@ function handleClick(e) {
   game.stats.clickPlasma += power;
   game.sessionPlasma += power;
   game.sessionClicks++;
+
+  // Daily challenge tap tracking
+  if (game.dailyChallenges && game.dailyChallenges.date === getTodayStr()) {
+    game.dailyChallenges.tapsToday = (game.dailyChallenges.tapsToday || 0) + 1;
+    checkChallengeCompletion();
+  }
+
+  // Tutorial step 0: first tap
+  if (tutorialActive && tutorialStep === 0) advanceTutorial();
 
   // Tap animation boost
   var btn = document.getElementById('plasma-click-btn');
@@ -350,16 +385,17 @@ function handleClick(e) {
     btn.classList.add('tap-burst');
   }
 
-  if (Math.random() < 0.3) spawnClickText(power);
+  if (Math.random() < 0.3) spawnClickText(power, comboMult);
+  updateComboUI();
   updateUI();
 }
 
-function spawnClickText(amount) {
+function spawnClickText(amount, comboMult) {
   const btn = document.getElementById('plasma-click-btn');
   const rect = btn.getBoundingClientRect();
   const el = document.createElement('div');
   el.className = 'click-float';
-  el.textContent = '+' + fmt(amount);
+  el.textContent = '+' + fmt(amount) + (comboMult > 1 ? ' ' + comboMult + '×' : '');
   el.style.left = (rect.left + rect.width / 2 + (Math.random() - 0.5) * 40) + 'px';
   el.style.top = (rect.top - 5) + 'px';
   document.body.appendChild(el);
@@ -367,15 +403,19 @@ function spawnClickText(amount) {
 }
 
 // ─── Game Mechanics ───
-function buyGenerator(id) {
+function buyGenerator(id, silent = false) {
   const def = GENERATOR_DEFS.find(g => g.id === id);
   const cost = getGenCost(def);
   if (game.plasma >= cost) {
     playSound('buy');
     game.plasma -= cost;
     game.generators[def.id]++;
-    updateUI();
+    checkChallengeCompletion();
+    if (tutorialActive && tutorialStep === 1 && id === 'spark') advanceTutorial();
+    if (!silent) updateUI();
+    return true;
   }
+  return false;
 }
 
 function buyMaxGenerator(id) {
@@ -451,9 +491,11 @@ function doPrestige(force = false) {
           window.Android.pushScore(myPlayerId, game.stats.playerName, game.stats.totalPlasma);
       }
 
-      var savedAchievements = Object.assign({}, game.achievements);
-      var savedLastLogin    = game.lastLoginDate;
-      var savedLoginStreak  = game.loginStreak;
+      var savedAchievements    = Object.assign({}, game.achievements);
+      var savedLastLogin       = game.lastLoginDate;
+      var savedLoginStreak     = game.loginStreak;
+      var savedDailyChallenges = game.dailyChallenges ? Object.assign({}, game.dailyChallenges) : null;
+      if (savedDailyChallenges) savedDailyChallenges.prestigeToday = (savedDailyChallenges.prestigeToday || 0) + 1;
 
       game = createFreshState();
       game.cosmicShards      = shards;
@@ -465,9 +507,11 @@ function doPrestige(force = false) {
       game.loginStreak       = savedLoginStreak;
       game.stats             = savedStats;
       game.leaderboard       = lb;
+      if (savedDailyChallenges) game.dailyChallenges = savedDailyChallenges;
       game.sessionPlasma     = 0;
       game.sessionClicks     = 0;
       checkAchievements();
+      checkChallengeCompletion();
 
       var headStart = getShardEffect('shardStart');
       if (headStart > 1) { game.plasma = headStart; game.totalPlasmaThisRun = headStart; }
@@ -485,6 +529,8 @@ function switchTab(tab) {
       b.classList.toggle('active', tab !== 'leaderboard' && b.dataset.tab === tab);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  if (tutorialActive && tutorialStep === 2 && tab === 'upgrades') advanceTutorial();
+  else if (tutorialActive && tutorialStep === 3 && tab === 'prestige') advanceTutorial();
 }
 
 function openLeaderboard() {
@@ -771,8 +817,37 @@ function initGeneratorsUI() {
     const card = document.createElement('div');
     card.id = `gen-card-${def.id}`;
     card.className = 'generator-card';
-    card.innerHTML = `<div class="gen-icon">${def.icon}</div><div class="gen-info"><div class="gen-name" id="gen-name-${def.id}"></div><div class="gen-details" id="gen-det-${def.id}"></div><div class="gen-output" id="gen-out-${def.id}"></div></div><div class="gen-buy-section"><span class="gen-count" id="gen-cnt-${def.id}"></span><button id="gen-btn-${def.id}" class="gen-buy-btn" onclick="buyGenerator('${def.id}')" oncontextmenu="buyMaxGenerator('${def.id}'); return false;"></button></div>`;
+    card.innerHTML = `<div class="gen-icon">${def.icon}</div><div class="gen-info"><div class="gen-name" id="gen-name-${def.id}"></div><div class="gen-details" id="gen-det-${def.id}"></div><div class="gen-output" id="gen-out-${def.id}"></div></div><div class="gen-buy-section"><span class="gen-count" id="gen-cnt-${def.id}"></span><button id="gen-btn-${def.id}" class="gen-buy-btn" oncontextmenu="buyMaxGenerator('${def.id}'); return false;"></button></div>`;
     container.appendChild(card);
+
+    // Hold-to-buy: continuously buy while finger/mouse held down
+    const btn = card.querySelector(`#gen-btn-${def.id}`);
+    let holdTimer = null;
+    let holdInterval = null;
+
+    function startHold(e) {
+      e.preventDefault();
+      buyGenerator(def.id);
+      holdTimer = setTimeout(() => {
+        holdInterval = setInterval(() => {
+          if (!buyGenerator(def.id, true)) clearInterval(holdInterval);
+        }, 80);
+      }, 400);
+    }
+
+    function stopHold() {
+      clearTimeout(holdTimer);
+      clearInterval(holdInterval);
+      holdTimer = null;
+      holdInterval = null;
+    }
+
+    btn.addEventListener('touchstart', startHold, { passive: false });
+    btn.addEventListener('touchend', stopHold);
+    btn.addEventListener('touchcancel', stopHold);
+    btn.addEventListener('mousedown', startHold);
+    btn.addEventListener('mouseup', stopHold);
+    btn.addEventListener('mouseleave', stopHold);
   });
 }
 
@@ -818,6 +893,8 @@ function initUpgradesUI() {
   });
 }
 
+let _lastUpgradeOrderKey = '';
+
 function updateUpgradesUI() {
   UPGRADE_DEFS.forEach(def => {
     const card = document.getElementById(`upg-card-${def.id}`);
@@ -826,7 +903,6 @@ function updateUpgradesUI() {
     const unlocked = def.req();
     const action = document.getElementById(`upg-action-${def.id}`);
 
-    // Always show — locked upgrades appear grayed to show future progression
     card.style.display = 'flex';
 
     if (owned) {
@@ -847,6 +923,22 @@ function updateUpgradesUI() {
       btn.textContent = fmt(def.cost);
     }
   });
+
+  // Sort: purchasable first → locked → owned — only when order changes
+  const container = document.getElementById('upgrades-list');
+  if (!container) return;
+  const order = (card) => {
+    if (card.classList.contains('purchased')) return 2;
+    if (card.classList.contains('locked'))   return 1;
+    return 0;
+  };
+  const cards = Array.from(container.children);
+  const orderKey = cards.map(c => order(c)).join(',');
+  if (orderKey !== _lastUpgradeOrderKey) {
+    _lastUpgradeOrderKey = orderKey;
+    cards.sort((a, b) => order(a) - order(b));
+    cards.forEach(c => container.appendChild(c));
+  }
 }
 
 function initShardUpgradesUI() {
@@ -1020,6 +1112,7 @@ function saveGame() {
     loginStreak: game.loginStreak,
     stats: game.stats,
     leaderboard: game.leaderboard,
+    dailyChallenges: game.dailyChallenges,
     savedAt: Date.now(),
   };
   localStorage.setItem('cosmicPlasma_save', JSON.stringify(data));
@@ -1050,6 +1143,7 @@ function loadGame() {
     }
 
     if (!game.stats.playerName) game.stats.playerName = 'Citizen_' + Math.floor(1000 + Math.random() * 9000);
+    if (!game.dailyChallenges) game.dailyChallenges = { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0 };
 
     // Compute offline production
     if (data.savedAt) {
@@ -1265,10 +1359,243 @@ function openAchievements() {
   document.getElementById('achievements-modal').classList.add('active');
 }
 
+// ═══════════════════════════════════════════════
+// ─── COMBO MULTIPLIER ───
+// ═══════════════════════════════════════════════
+function getComboMultiplier() {
+  if (Date.now() - comboTimestamp > COMBO_RESET_MS) return 1;
+  for (const tier of COMBO_TIERS) {
+    if (comboCount >= tier.min) return tier.mult;
+  }
+  return 1;
+}
+
+function updateComboUI() {
+  const el = document.getElementById('combo-display');
+  const countEl = document.getElementById('combo-count');
+  const multEl  = document.getElementById('combo-mult');
+  if (!el) return;
+  if (comboCount < 5) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.classList.remove('fading');
+  const prev = parseInt(countEl.textContent) || 0;
+  countEl.textContent = comboCount;
+  const mult = getComboMultiplier();
+  multEl.textContent = mult > 1 ? mult + '×' : '';
+  if ([5, 10, 20].includes(comboCount) && comboCount !== prev) {
+    el.classList.remove('combo-pulse');
+    void el.offsetWidth;
+    el.classList.add('combo-pulse');
+  }
+}
+
+function resetComboUI() {
+  const el = document.getElementById('combo-display');
+  if (!el) return;
+  el.classList.add('fading');
+  setTimeout(() => { el.style.display = 'none'; el.classList.remove('fading'); }, 400);
+}
+
+// ═══════════════════════════════════════════════
+// ─── DAILY CHALLENGES ───
+// ═══════════════════════════════════════════════
+const CHALLENGE_TEMPLATES = [
+  { type: 'buy-generators', genId: 'spark',  target: 10,  rewardType: 'plasma', rewardAmount: 500,  labelFn: (t) => `Buy ${t} Spark generators`,       rewardFn: (r) => `+${fmt(r)} Plasma` },
+  { type: 'buy-generators', genId: 'ember',  target: 5,   rewardType: 'plasma', rewardAmount: 2000, labelFn: (t) => `Buy ${t} Ember generators`,        rewardFn: (r) => `+${fmt(r)} Plasma` },
+  { type: 'buy-generators', genId: 'flare',  target: 3,   rewardType: 'shards', rewardAmount: 1,    labelFn: (t) => `Buy ${t} Solar Flares`,            rewardFn: (r) => `+${r} 💎 Shards` },
+  { type: 'earn-plasma',                     target: 1e4, rewardType: 'plasma', rewardAmount: 1000, labelFn: (t) => `Earn ${fmt(t)} plasma this session`,rewardFn: (r) => `+${fmt(r)} Plasma` },
+  { type: 'earn-plasma',                     target: 1e6, rewardType: 'shards', rewardAmount: 2,    labelFn: (t) => `Earn ${fmt(t)} plasma this session`,rewardFn: (r) => `+${r} 💎 Shards` },
+  { type: 'tap-count',                       target: 50,  rewardType: 'plasma', rewardAmount: 300,  labelFn: (t) => `Tap the orb ${t} times today`,     rewardFn: (r) => `+${fmt(r)} Plasma` },
+  { type: 'tap-count',                       target: 200, rewardType: 'shards', rewardAmount: 1,    labelFn: (t) => `Tap the orb ${t} times today`,     rewardFn: (r) => `+${r} 💎 Shards` },
+  { type: 'prestige',                        target: 1,   rewardType: 'shards', rewardAmount: 5,    labelFn: ()  => `Prestige once today`,              rewardFn: (r) => `+${r} 💎 Shards` },
+];
+
+function generateDailyChallenges(dateStr) {
+  const seed = parseInt(dateStr.replace(/-/g, '')) || 20260101;
+  function seededRand(n, offset) {
+    return ((seed * 1664525 + offset * 22695477 + 1013904223) >>> 0) % n;
+  }
+  const pool = CHALLENGE_TEMPLATES.slice();
+  const chosen = [];
+  for (let i = 0; i < 3; i++) {
+    const idx = seededRand(pool.length, i * 7);
+    const tpl = pool.splice(idx, 1)[0];
+    chosen.push({
+      id: 'ch' + i,
+      type: tpl.type,
+      genId: tpl.genId || null,
+      target: tpl.target,
+      rewardType: tpl.rewardType,
+      rewardAmount: tpl.rewardAmount,
+      label: tpl.labelFn(tpl.target),
+      rewardLabel: tpl.rewardFn(tpl.rewardAmount),
+    });
+  }
+  return chosen;
+}
+
+function checkAndRefreshDailyChallenges() {
+  const today = getTodayStr();
+  if (!game.dailyChallenges) {
+    game.dailyChallenges = { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0 };
+  }
+  if (game.dailyChallenges.date !== today) {
+    game.dailyChallenges.date = today;
+    game.dailyChallenges.challenges = generateDailyChallenges(today);
+    game.dailyChallenges.completed = [];
+    game.dailyChallenges.tapsToday = 0;
+    game.dailyChallenges.prestigeToday = 0;
+    saveGame();
+  }
+}
+
+function getChallengeProgress(ch) {
+  const dc = game.dailyChallenges;
+  if (ch.type === 'buy-generators') return game.generators[ch.genId] || 0;
+  if (ch.type === 'earn-plasma')    return game.totalPlasmaThisRun;
+  if (ch.type === 'tap-count')      return dc.tapsToday || 0;
+  if (ch.type === 'prestige')       return dc.prestigeToday || 0;
+  return 0;
+}
+
+function applyDailyChallengeReward(ch) {
+  if (ch.rewardType === 'plasma') {
+    game.plasma += ch.rewardAmount;
+    game.totalPlasmaThisRun += ch.rewardAmount;
+    game.stats.totalPlasma += ch.rewardAmount;
+  } else if (ch.rewardType === 'shards') {
+    game.cosmicShards += ch.rewardAmount;
+    game.totalShardsEarned += ch.rewardAmount;
+  }
+}
+
+function checkChallengeCompletion() {
+  const dc = game.dailyChallenges;
+  if (!dc || !dc.challenges) return;
+  dc.challenges.forEach(ch => {
+    if (dc.completed.includes(ch.id)) return;
+    if (getChallengeProgress(ch) >= ch.target) {
+      dc.completed.push(ch.id);
+      applyDailyChallengeReward(ch);
+      showToast('✅ Challenge done: ' + ch.label + ' → ' + ch.rewardLabel);
+      updateDailyChallengesUI();
+      saveGame();
+    }
+  });
+}
+
+function updateDailyChallengesUI() {
+  const container = document.getElementById('daily-challenges-list');
+  if (!container) return;
+  const dc = game.dailyChallenges;
+  if (!dc || !dc.challenges || dc.challenges.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:12px 0">No challenges today.</p>';
+    return;
+  }
+  const dateEl = document.getElementById('daily-challenges-date');
+  if (dateEl) dateEl.textContent = 'Resets at midnight · ' + (dc.date || '');
+  container.innerHTML = dc.challenges.map(ch => {
+    const done = dc.completed.includes(ch.id);
+    const prog = Math.min(getChallengeProgress(ch), ch.target);
+    const pct  = Math.floor((prog / ch.target) * 100);
+    return `<div class="challenge-card${done ? ' completed' : ''}">
+      <span class="challenge-check">${done ? '✅' : '🔲'}</span>
+      <div class="challenge-info">
+        <div class="challenge-label">${ch.label}</div>
+        <div class="challenge-progress-text">${fmt(prog)} / ${fmt(ch.target)}</div>
+        <div class="challenge-bar-wrap"><div class="challenge-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="challenge-reward">${ch.rewardLabel}</div>
+    </div>`;
+  }).join('');
+}
+
+function openDailyChallengesModal() {
+  initAudio();
+  playSound('click');
+  updateDailyChallengesUI();
+  document.getElementById('daily-challenges-modal').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════
+// ─── TUTORIAL / ONBOARDING ───
+// ═══════════════════════════════════════════════
+const TUTORIAL_STEPS = [
+  { targetId: 'plasma-click-btn', text: 'Tap the orb to generate Plasma Energy!', arrow: 'up' },
+  { targetId: 'gen-btn-spark',    text: 'Buy a Spark generator — tap more to earn plasma first if it\'s grayed out!', arrow: 'right' },
+  { targetId: 'tab-btn-upgrades', text: 'Open Upgrades to boost your tap power and generators.', arrow: 'down' },
+  { targetId: 'tab-btn-prestige', text: 'Prestige resets your run but earns permanent Cosmic Shards!', arrow: 'down' },
+];
+
+function initTutorial() {
+  if (localStorage.getItem('cosmicPlasma_tutorialDone')) return;
+  startTutorial();
+}
+
+function startTutorial() {
+  tutorialActive = true;
+  tutorialStep = 0;
+  document.getElementById('tutorial-overlay').style.display = 'block';
+  renderTutorialStep(0);
+}
+
+function renderTutorialStep(n) {
+  const step = TUTORIAL_STEPS[n];
+  const target = document.getElementById(step.targetId);
+  if (!target) { advanceTutorial(); return; }
+
+  const rect = target.getBoundingClientRect();
+  const pad  = 10;
+  const hbox = document.getElementById('tutorial-highlight');
+  const tip  = document.getElementById('tutorial-tip');
+  const txt  = document.getElementById('tutorial-text');
+
+  hbox.style.left   = (rect.left - pad) + 'px';
+  hbox.style.top    = (rect.top  - pad) + 'px';
+  hbox.style.width  = (rect.width  + pad * 2) + 'px';
+  hbox.style.height = (rect.height + pad * 2) + 'px';
+
+  txt.textContent = step.text;
+
+  // Position tooltip above or below target
+  const tipH = 110;
+  const margin = 16;
+  if (rect.top > tipH + margin) {
+    tip.style.top    = (rect.top - pad - tipH - 8) + 'px';
+  } else {
+    tip.style.top    = (rect.bottom + pad + 8) + 'px';
+  }
+  tip.style.left = Math.max(margin, Math.min(rect.left - 20, window.innerWidth - 260 - margin)) + 'px';
+
+  document.getElementById('tutorial-step-num').textContent = (n + 1) + ' / ' + TUTORIAL_STEPS.length;
+}
+
+function advanceTutorial() {
+  tutorialStep++;
+  if (tutorialStep >= TUTORIAL_STEPS.length) {
+    endTutorial();
+  } else {
+    requestAnimationFrame(() => renderTutorialStep(tutorialStep));
+  }
+}
+
+function endTutorial() {
+  tutorialActive = false;
+  document.getElementById('tutorial-overlay').style.display = 'none';
+  localStorage.setItem('cosmicPlasma_tutorialDone', '1');
+  showToast('🚀 Tutorial complete! Good luck, Commander.');
+}
+
+function skipTutorial() {
+  endTutorial();
+}
+
 function init() {
   loadGame();
+  checkAndRefreshDailyChallenges();
   renderAll();
   setTimeout(checkDailyLogin, 600);
+  setTimeout(initTutorial, 1400);
   requestAnimationFrame(tick);
   setInterval(saveGame, 30000);
   setInterval(checkAchievements, 1000);
