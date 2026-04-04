@@ -54,6 +54,24 @@ const UPGRADE_DEFS = [
 
   // ── Quantum Touch: 3% of /sec per tap (end-game scaling) ──
   { id: 'click4', name: 'Quantum Touch',    icon: '🫴', desc: 'Each tap = 3% of your /sec',  cost: 3e8,    effect: () => { game.clickPercentOfRate = 0.03; },      req: () => game.stats.totalClicks >= 2000 },
+
+  // ── Tier 2: per-generator upgrades (requires Tier 1 owned + 25 of that gen) ──
+  { id: 'gen1b',  name: 'Spark Overdrive',  icon: '✦',  desc: 'Sparks produce ×20',           cost: 8e4,    effect: () => { game.genMultipliers.spark  *= 20; },    req: () => game.upgrades.includes('gen1')  && getGenCount('spark')  >= 25 },
+  { id: 'gen2b',  name: 'Ember Ignition',   icon: '🔥', desc: 'Embers produce ×22',           cost: 1.5e6,  effect: () => { game.genMultipliers.ember  *= 22; },    req: () => game.upgrades.includes('gen2')  && getGenCount('ember')  >= 25 },
+  { id: 'gen3b',  name: 'Flare Supercharge',icon: '☀️', desc: 'Solar Flares produce ×25',     cost: 2e7,    effect: () => { game.genMultipliers.flare  *= 25; },    req: () => game.upgrades.includes('gen3')  && getGenCount('flare')  >= 25 },
+  { id: 'gen4b',  name: 'Arc Overload',     icon: '⚡', desc: 'Plasma Arcs produce ×25',      cost: 3e8,    effect: () => { game.genMultipliers.arc    *= 25; },    req: () => game.upgrades.includes('gen4')  && getGenCount('arc')    >= 25 },
+  { id: 'gen5b',  name: 'Fusion Singularity',icon: '🌀',desc: 'Fusion Cores produce ×30',     cost: 5e9,    effect: () => { game.genMultipliers.fusion *= 30; },    req: () => game.upgrades.includes('gen5')  && getGenCount('fusion') >= 25 },
+  { id: 'gen6b',  name: 'Nova Cataclysm',   icon: '💥', desc: 'Nova Bursts produce ×30',      cost: 8e10,   effect: () => { game.genMultipliers.nova   *= 30; },    req: () => game.upgrades.includes('gen6')  && getGenCount('nova')   >= 25 },
+  { id: 'gen7b',  name: 'Pulsar Resonance', icon: '🌟', desc: 'Pulsar Engines produce ×40',   cost: 1.5e12, effect: () => { game.genMultipliers.pulsar *= 40; },    req: () => game.upgrades.includes('gen7')  && getGenCount('pulsar') >= 25 },
+  { id: 'gen8b',  name: 'Quasar Collapse',  icon: '🌌', desc: 'Quasars produce ×50',          cost: 3e13,   effect: () => { game.genMultipliers.quasar *= 50; },    req: () => game.upgrades.includes('gen8')  && getGenCount('quasar') >= 25 },
+
+  // ── Tier 2: global multipliers ──
+  { id: 'all4',   name: 'Quantum Resonance', icon: '🪐', desc: 'All generators ×25',           cost: 5e14,   effect: () => { game.globalGenMultiplier   *= 25; },    req: () => game.upgrades.includes('all3')  && game.stats.totalPlasma >= 1e14 },
+  { id: 'all5',   name: 'Cosmic Singularity',icon: '♾️', desc: 'All generators ×50',           cost: 1e17,   effect: () => { game.globalGenMultiplier   *= 50; },    req: () => game.upgrades.includes('all4')  && game.stats.totalPlasma >= 5e16 },
+
+  // ── Tier 2: tap power ──
+  { id: 'click6', name: 'Stellar Fist',     icon: '👊', desc: 'Tap power ×32',                cost: 2e11,   effect: () => { game.clickMultiplier *= 32; },          req: () => game.upgrades.includes('click5') && game.stats.totalClicks >= 20000 },
+  { id: 'click7', name: 'Void Touch',       icon: '🫴', desc: 'Each tap = 8% of your /sec',   cost: 5e13,   effect: () => { game.clickPercentOfRate = 0.08; },       req: () => game.upgrades.includes('click4') && game.stats.totalClicks >= 50000 },
 ];
 
 // ─── Shard Upgrade Definitions (permanent, persist through prestige) ───
@@ -805,26 +823,28 @@ function updateUpgradesUI() {
     const card = document.getElementById(`upg-card-${def.id}`);
     if (!card) return;
     const owned = game.upgrades.includes(def.id);
-    const visible = owned || def.req();
+    const unlocked = def.req();
+    const action = document.getElementById(`upg-action-${def.id}`);
 
-    if (!visible) {
-      card.style.display = 'none';
-    } else {
-      card.style.display = 'flex';
-      card.className = 'upgrade-card' + (owned ? ' purchased' : '');
-      const action = document.getElementById(`upg-action-${def.id}`);
-      if (owned) {
-        if (!action.querySelector('span')) {
-            action.innerHTML = '<span style="color:var(--accent-green);font-family:var(--font-display);font-size:0.7rem;">OWNED</span>';
-        }
-      } else {
-        if (!action.querySelector('button')) {
-            action.innerHTML = `<button id="upg-btn-${def.id}" class="upg-buy-btn" onclick="buyUpgrade('${def.id}')"></button>`;
-        }
-        const btn = document.getElementById(`upg-btn-${def.id}`);
-        btn.disabled = game.plasma < def.cost;
-        btn.textContent = fmt(def.cost);
+    // Always show — locked upgrades appear grayed to show future progression
+    card.style.display = 'flex';
+
+    if (owned) {
+      card.className = 'upgrade-card purchased';
+      if (!action.querySelector('.upg-owned-tag')) {
+        action.innerHTML = '<span class="upg-owned-tag" style="color:var(--accent-green);font-family:var(--font-display);font-size:0.7rem;">OWNED</span>';
       }
+    } else if (!unlocked) {
+      card.className = 'upgrade-card locked';
+      action.innerHTML = '<span style="color:var(--text-muted);font-family:var(--font-display);font-size:0.6rem;">LOCKED</span>';
+    } else {
+      card.className = 'upgrade-card';
+      if (!action.querySelector('button')) {
+        action.innerHTML = `<button id="upg-btn-${def.id}" class="upg-buy-btn" onclick="buyUpgrade('${def.id}')"></button>`;
+      }
+      const btn = document.getElementById(`upg-btn-${def.id}`);
+      btn.disabled = game.plasma < def.cost;
+      btn.textContent = fmt(def.cost);
     }
   });
 }
@@ -1225,6 +1245,24 @@ function showNextAchievement() {
     document.getElementById('achievement-pop').classList.remove('active');
     setTimeout(showNextAchievement, 400);
   }, 3000);
+}
+
+function openAchievements() {
+  playSound('click');
+  const earned = game.achievements || {};
+  const list = document.getElementById('achievements-list');
+  list.innerHTML = ACHIEVEMENT_DEFS.map(def => {
+    const done = !!earned[def.id];
+    return `<div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,${done ? '0.18' : '0.07'});border-radius:10px;padding:10px 14px;opacity:${done ? '1' : '0.45'}">
+      <span style="font-size:1.5rem">${def.icon}</span>
+      <div style="flex:1;text-align:left">
+        <div style="font-weight:700;color:${done ? '#22d3ee' : '#aaa'};font-size:0.95rem">${def.title}</div>
+        <div style="font-size:0.78rem;color:#888;margin-top:2px">${def.subtitle}</div>
+      </div>
+      <span style="font-size:1.1rem">${done ? '✅' : '🔒'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('achievements-modal').classList.add('active');
 }
 
 function init() {

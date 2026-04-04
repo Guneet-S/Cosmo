@@ -29,6 +29,8 @@
     <div class="header-title-row">
       <h1 class="game-title">COSMIC <span class="accent">PLASMA</span></h1>
       <div class="header-actions">
+        <button id="daily-btn" class="header-icon-btn" onclick="checkDailyLogin()" title="Daily Reward">🎁</button>
+        <button id="ach-btn"   class="header-icon-btn" onclick="openAchievements()" title="Achievements">🏆</button>
         <button id="settings-btn" class="header-icon-btn settings" onclick="openSettings()" aria-label="Settings">⚙️</button>
       </div>
     </div>
@@ -288,6 +290,16 @@
     <p id="daily-streak-status" class="modal-subtitle"></p>
     <div id="daily-calendar" class="daily-calendar"></div>
     <button class="modal-btn" onclick="claimDailyReward()">CLAIM REWARD</button>
+  </div>
+</div>
+
+<!-- Achievements Modal -->
+<div id="achievements-modal" class="modal-overlay">
+  <div class="modal-box modal-wide">
+    <div class="modal-icon">🏆</div>
+    <h2 class="modal-title">Achievements</h2>
+    <div id="achievements-list" style="width:100%;margin:12px 0 4px;display:flex;flex-direction:column;gap:10px;"></div>
+    <button class="modal-btn" onclick="closeModal('achievements-modal')">CLOSE</button>
   </div>
 </div>
 

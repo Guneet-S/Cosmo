@@ -13,6 +13,19 @@
 
 ---
 
+## [1.4] — Upgrade Overhaul & Achievement Panel
+
+### New Features
+- **Tier 2 upgrades** — 8 new generator upgrades (×20 multipliers at 25 owned), 2 new global multipliers (all4/all5), 2 new tap upgrades (click6/click7)
+- **Achievements panel** — 🏆 button opens a full list of all achievements showing earned/locked state
+- **Daily reward button** — 🎁 header button to open daily streak modal anytime
+- **Locked upgrade visibility** — all upgrades now visible from start, grayed out until unlock conditions are met
+
+### Bug Fixes
+- Upgrade tab no longer appears empty on fresh game — locked cards are shown grayed
+
+---
+
 ## [Unreleased] — Balance Pass & Code Cleanup
 
 ### Game Balance

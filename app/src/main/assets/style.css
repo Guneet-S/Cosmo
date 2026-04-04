@@ -616,6 +616,12 @@ body {
     border-color: var(--accent-green);
 }
 
+.upgrade-card.locked {
+    opacity: 0.38;
+    filter: grayscale(0.6);
+    pointer-events: none;
+}
+
 .upgrade-card:hover:not(.purchased) {
     border-color: var(--border-glow);
     box-shadow: var(--glow-cyan);
