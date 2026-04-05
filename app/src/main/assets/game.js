@@ -104,6 +104,7 @@ function createFreshState() {
     shardUpgrades: {},
     lastLoginDate: null,
     loginStreak: 0,
+    nextClaimAt: null,
     achievements: {},
     stats: {
       totalPlasma: 0,
@@ -538,6 +539,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
   if (tutorialActive && tutorialStep === 2 && tab === 'upgrades') advanceTutorial();
   else if (tutorialActive && tutorialStep === 3 && tab === 'prestige') advanceTutorial();
+  else if (tutorialActive && tutorialStep === 4 && tab === 'stats') advanceTutorial();
 }
 
 function openLeaderboard() {
@@ -545,6 +547,7 @@ function openLeaderboard() {
   playSound('click');
   switchTab('leaderboard');
   renderLeaderboard();
+  if (tutorialActive && tutorialStep === 5) advanceTutorial();
 }
 
 const lbNames = [
@@ -796,10 +799,10 @@ function updateLeaderboardLive() {
 
     const btn = document.getElementById('lb-locate-btn');
     if (lbViewMode === 'top') {
-        btn.innerHTML = '⌖';
+        btn.innerHTML = '⌖ Find Me';
         btn.className = 'lb-locate-btn top';
     } else {
-        btn.innerHTML = '⇈';
+        btn.innerHTML = '⇈ Top 100';
         btn.className = 'lb-locate-btn local';
     }
 }
@@ -1117,6 +1120,7 @@ function saveGame() {
     achievements: game.achievements,
     lastLoginDate: game.lastLoginDate,
     loginStreak: game.loginStreak,
+    nextClaimAt: game.nextClaimAt,
     stats: game.stats,
     leaderboard: game.leaderboard,
     dailyChallenges: game.dailyChallenges,
@@ -1153,8 +1157,15 @@ function loadGame() {
     if (!game.dailyChallenges) game.dailyChallenges = { date: null, challenges: [], completed: [], tapsToday: 0, prestigeToday: 0, gensBoughtToday: {} };
     if (!game.dailyChallenges.gensBoughtToday) game.dailyChallenges.gensBoughtToday = {};
 
+    // Anti-cheat: detect clock rollback (device time moved backwards)
+    const clockRolledBack = data.savedAt && Date.now() < data.savedAt;
+    if (clockRolledBack) {
+      // Clock was moved back — treat as zero time elapsed, preserve nextClaimAt
+      console.warn('[anti-cheat] Clock rollback detected. Offline earnings skipped.');
+    }
+
     // Compute offline production
-    if (data.savedAt) {
+    if (data.savedAt && !clockRolledBack) {
       const offlineSec = (Date.now() - data.savedAt) / 1000;
       if (offlineSec > 60) {
         const offlineRate = getTotalRate();
@@ -1267,8 +1278,14 @@ const DAILY_REWARDS = [
 function getTodayStr() { return new Date().toISOString().slice(0, 10); }
 
 function checkDailyLogin() {
-  const today = getTodayStr();
-  if (game.lastLoginDate === today) return;
+  // Anti-cheat (Option 2+3): prefer epoch-based nextClaimAt if available
+  if (game.nextClaimAt) {
+    if (Date.now() < game.nextClaimAt) return; // Not time yet
+  } else {
+    // Legacy fallback for saves before nextClaimAt was added
+    const today = getTodayStr();
+    if (game.lastLoginDate === today) return;
+  }
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -1307,10 +1324,73 @@ function claimDailyReward() {
   const reward = DAILY_REWARDS.find(r => r.day === game.loginStreak);
   if (reward) reward.apply();
   game.lastLoginDate = getTodayStr();
-  closeModal('daily-login-modal');
+  game.nextClaimAt = Date.now() + 86400000; // 24h from now (anti-cheat epoch lock)
+  closeDailyModal();
   showToast(`🎁 Day ${game.loginStreak} reward: ${reward ? reward.label : ''}`);
   saveGame();
   updateUI();
+}
+
+let _dailyCountdownInterval = null;
+
+function closeDailyModal() {
+  if (_dailyCountdownInterval) { clearInterval(_dailyCountdownInterval); _dailyCountdownInterval = null; }
+  const btn = document.getElementById('daily-claim-btn');
+  if (btn) { btn.disabled = false; btn.textContent = 'CLAIM REWARD'; }
+  const cd = document.getElementById('daily-countdown');
+  if (cd) cd.textContent = '';
+  closeModal('daily-login-modal');
+}
+
+function openDailyStreak() {
+  initAudio();
+  const alreadyClaimed = game.nextClaimAt && Date.now() < game.nextClaimAt;
+
+  if (!alreadyClaimed) {
+    checkDailyLogin();
+    return;
+  }
+
+  // Already claimed — show modal in view-only mode with countdown
+  const streak = game.loginStreak;
+  document.getElementById('daily-streak-status').textContent = `✅ Day ${streak} reward collected!`;
+
+  const calendarEl = document.getElementById('daily-calendar');
+  calendarEl.innerHTML = '';
+  DAILY_REWARDS.forEach(r => {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day' +
+      (r.day < streak ? ' claimed' : '') +
+      (r.day === streak ? ' claimed today' : '') +
+      (r.day > streak ? ' locked' : '');
+    cell.innerHTML = `<div class="cal-day-num">Day ${r.day}</div><div class="cal-reward">${r.label}</div>`;
+    calendarEl.appendChild(cell);
+  });
+
+  const claimBtn = document.getElementById('daily-claim-btn');
+  claimBtn.disabled = true;
+  claimBtn.textContent = 'ALREADY CLAIMED';
+
+  if (_dailyCountdownInterval) clearInterval(_dailyCountdownInterval);
+  const cdEl = document.getElementById('daily-countdown');
+  function tick() {
+    const rem = game.nextClaimAt - Date.now();
+    if (rem <= 0) {
+      cdEl.textContent = 'Next reward ready! Close and reopen to claim.';
+      claimBtn.disabled = false;
+      claimBtn.textContent = 'CLAIM REWARD';
+      clearInterval(_dailyCountdownInterval);
+      _dailyCountdownInterval = null;
+      return;
+    }
+    const h = Math.floor(rem / 3600000);
+    const m = Math.floor((rem % 3600000) / 60000);
+    const s = Math.floor((rem % 60000) / 1000);
+    cdEl.textContent = `Next reward in: ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+  }
+  tick();
+  _dailyCountdownInterval = setInterval(tick, 1000);
+  document.getElementById('daily-login-modal').classList.add('active');
 }
 
 // ─── Achievement System ───
@@ -1534,22 +1614,18 @@ const TUTORIAL_STEPS = [
   { targetId: 'gen-btn-spark',    text: 'Buy a Spark generator — tap more to earn plasma first if it\'s grayed out!', arrow: 'right' },
   { targetId: 'tab-btn-upgrades', text: 'Open Upgrades to boost your tap power and generators.', arrow: 'down' },
   { targetId: 'tab-btn-prestige', text: 'Prestige resets your run but earns permanent Cosmic Shards!', arrow: 'down' },
+  { targetId: 'tab-btn-stats',    text: 'Check Stats to track your total production and playtime.', arrow: 'down' },
+  { targetId: 'lb-header-btn',    text: 'Tap the trophy to open the Leaderboard and compete with others!', arrow: 'up' },
 ];
 
 function initTutorial() {
-  if (localStorage.getItem('cosmicPlasma_tutorialDone')) return;
-  const modal = document.getElementById('daily-login-modal');
-  if (modal && modal.classList.contains('active')) {
-    const observer = new MutationObserver(() => {
-      if (!modal.classList.contains('active')) {
-        observer.disconnect();
-        setTimeout(startTutorial, 400);
-      }
-    });
-    observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-  } else {
-    startTutorial();
+  if (localStorage.getItem('cosmicPlasma_tutorialDone')) {
+    // Tutorial already done — show daily bonus for returning users
+    checkDailyLogin();
+    return;
   }
+  // New user: start tutorial immediately, daily bonus fires after tutorial ends
+  startTutorial();
 }
 
 function startTutorial() {
@@ -1604,6 +1680,8 @@ function endTutorial() {
   document.getElementById('tutorial-overlay').style.display = 'none';
   localStorage.setItem('cosmicPlasma_tutorialDone', '1');
   showToast('🚀 Tutorial complete! Good luck, Commander.');
+  // Show daily bonus after tutorial finishes (fix A: tutorial first, then daily bonus)
+  setTimeout(checkDailyLogin, 600);
 }
 
 function skipTutorial() {
@@ -1614,8 +1692,7 @@ function init() {
   loadGame();
   checkAndRefreshDailyChallenges();
   renderAll();
-  setTimeout(checkDailyLogin, 600);
-  setTimeout(initTutorial, 1400);
+  setTimeout(initTutorial, 600); // handles daily bonus internally based on tutorial state
   requestAnimationFrame(tick);
   setInterval(saveGame, 30000);
   setInterval(checkAchievements, 1000);

@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(claude:*)",
+      "Bash(./gradlew assembleRelease)",
+      "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
+      "Read(//c/Program Files/**)",
+      "Bash(JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\" ./gradlew assembleRelease)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(py -3 -c \"from PIL import Image; print\\(''ok''\\)\")",
+      "Bash(ls /c/Python*/python.exe)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(ls /c/Users/Administrator/AndroidStudioProjects/CosmicPlasma/*.jks)",
+      "Bash(JAVA_HOME=\"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\")",
+      "Bash(\"$JAVA_HOME/bin/keytool\" -genkeypair -v -keystore /c/Users/Administrator/AndroidStudioProjects/CosmicPlasma/cosmicplasma.jks -alias cosmicplasma -keyalg RSA -keysize 2048 -validity 10000 -storepass cosmicplasma123 -keypass cosmicplasma123 -dname \"CN=CosmicPlasma, OU=Gunman, O=Gunman, L=Unknown, ST=Unknown, C=US\")",
+      "Bash(APKSIGNER=\"/c/Users/Administrator/AppData/Local/Android/Sdk/build-tools/36.1.0/apksigner.bat\")",
+      "Bash(cmd.exe /c \"$APKSIGNER sign --ks C:\\\\Users\\\\Administrator\\\\AndroidStudioProjects\\\\CosmicPlasma\\\\cosmicplasma.jks --ks-key-alias cosmicplasma --ks-pass pass:cosmicplasma123 --key-pass pass:cosmicplasma123 --out C:\\\\Users\\\\Administrator\\\\AndroidStudioProjects\\\\CosmicPlasma\\\\builds\\\\CosmicPlasma-v1.1-signed.apk C:\\\\Users\\\\Administrator\\\\AndroidStudioProjects\\\\CosmicPlasma\\\\app\\\\build\\\\outputs\\\\apk\\\\release\\\\app-release-unsigned.apk\")",
+      "Bash(cmd.exe /c \"set JAVA_HOME=C:\\\\\\\\Program Files\\\\\\\\Android\\\\\\\\Android Studio\\\\\\\\jbr && C:\\\\\\\\Users\\\\\\\\Administrator\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Android\\\\\\\\Sdk\\\\\\\\build-tools\\\\\\\\36.1.0\\\\\\\\apksigner.bat sign --ks C:\\\\\\\\Users\\\\\\\\Administrator\\\\\\\\AndroidStudioProjects\\\\\\\\CosmicPlasma\\\\\\\\cosmicplasma.jks --ks-key-alias cosmicplasma --ks-pass pass:cosmicplasma123 --key-pass pass:cosmicplasma123 --out C:\\\\\\\\Users\\\\\\\\Administrator\\\\\\\\AndroidStudioProjects\\\\\\\\CosmicPlasma\\\\\\\\builds\\\\\\\\CosmicPlasma-v1.1-signed.apk C:\\\\\\\\Users\\\\\\\\Administrator\\\\\\\\AndroidStudioProjects\\\\\\\\CosmicPlasma\\\\\\\\app\\\\\\\\build\\\\\\\\outputs\\\\\\\\apk\\\\\\\\release\\\\\\\\app-release-unsigned.apk && echo DONE\")",
+      "Bash(\"/c/Program Files/Android/Android Studio/jbr/bin/jarsigner\" -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore /c/Users/Administrator/AndroidStudioProjects/CosmicPlasma/cosmicplasma.jks -storepass cosmicplasma123 -keypass cosmicplasma123 /c/Users/Administrator/AndroidStudioProjects/CosmicPlasma/builds/CosmicPlasma-v1.1-signed.apk cosmicplasma)",
+      "Bash(/c/Users/Administrator/AppData/Local/Android/Sdk/build-tools/36.1.0/zipalign.exe -v 4 /c/Users/Administrator/AndroidStudioProjects/CosmicPlasma/builds/CosmicPlasma-v1.1-signed-unaligned.apk /c/Users/Administrator/AndroidStudioProjects/CosmicPlasma/builds/CosmicPlasma-v1.1-signed.apk)",
+      "Bash(export PATH=\"$PATH:/c/Users/Administrator/AppData/Local/Android/Sdk/platform-tools\")",
+      "Bash(adb devices:*)",
+      "Bash(export PATH=$PATH:/c/Users/Administrator/AppData/Local/Android/Sdk/platform-tools)",
+      "Bash(adb logcat:*)",
+      "Bash(adb shell:*)",
+      "Bash(grep -v \"^--$\")",
+      "Bash(adb install:*)"
+    ]
+  }
+}

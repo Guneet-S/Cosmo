@@ -30,7 +30,7 @@
     <div class="header-title-row">
       <h1 class="game-title">COSMIC <span class="accent">PLASMA</span></h1>
       <div class="header-actions">
-        <button id="daily-btn"      class="header-icon-btn" onclick="checkDailyLogin()" title="Daily Reward">🎁</button>
+        <button id="daily-btn"      class="header-icon-btn" onclick="openDailyStreak()" title="Daily Reward">🎁</button>
         <button id="ach-btn"        class="header-icon-btn" onclick="openAchievements()" title="Achievements">🏆</button>
         <button id="challenges-btn" class="header-icon-btn" onclick="openDailyChallengesModal()" title="Daily Challenges">🎯</button>
         <button id="settings-btn"   class="header-icon-btn settings" onclick="openSettings()" aria-label="Settings">⚙️</button>
@@ -76,7 +76,7 @@
       <div style="width: 80px;"></div> <!-- Spacer -->
       <div class="click-power-label" id="tap-power-label" style="margin-top: 0;">Tap Power: <span id="click-power-display">1</span></div>
       <div class="quick-actions" style="display: flex; width: 80px; justify-content: flex-end; gap: 8px;">
-        <button class="quick-action-btn" onclick="openLeaderboard()" aria-label="Leaderboard">🏆</button>
+        <button id="lb-header-btn" class="quick-action-btn" onclick="openLeaderboard()" aria-label="Leaderboard">🏆</button>
         <button class="quick-action-btn" onclick="openInfoModal()" aria-label="Info">ℹ️</button>
       </div>
     </div>
@@ -87,7 +87,7 @@
     <button class="tab-btn active" data-tab="generators" onclick="switchTab('generators')">Generators</button>
     <button id="tab-btn-upgrades" class="tab-btn" data-tab="upgrades" onclick="switchTab('upgrades')">Upgrades</button>
     <button id="tab-btn-prestige" class="tab-btn" data-tab="prestige" onclick="switchTab('prestige')">Prestige</button>
-    <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">Stats</button>
+    <button id="tab-btn-stats" class="tab-btn" data-tab="stats" onclick="switchTab('stats')">Stats</button>
   </nav>
 
   <!-- Tab panels -->
@@ -296,7 +296,9 @@
     <h2 class="modal-title">Daily Reward</h2>
     <p id="daily-streak-status" class="modal-subtitle"></p>
     <div id="daily-calendar" class="daily-calendar"></div>
-    <button class="modal-btn" onclick="claimDailyReward()">CLAIM REWARD</button>
+    <p id="daily-countdown" style="font-size:0.85rem;color:#aaa;margin:6px 0 0;min-height:1.2em;"></p>
+    <button id="daily-claim-btn" class="modal-btn" onclick="claimDailyReward()">CLAIM REWARD</button>
+    <button class="modal-btn" style="background:transparent;border:1px solid #555;margin-top:6px;" onclick="closeModal('daily-login-modal')">CLOSE</button>
   </div>
 </div>
 
